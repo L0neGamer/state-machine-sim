@@ -3,7 +3,7 @@ module Main where
 import Lib
 import DFA
 import NFA
-import Convert
+-- import Convert
 import Regex
 
 main :: IO ()

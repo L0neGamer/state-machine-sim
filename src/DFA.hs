@@ -6,10 +6,15 @@ import Lib
 
 import qualified Data.Map as M
 import qualified Data.Set as S
+import qualified Data.Graph as G
+import qualified Data.Graph.DGraph as GDG
+import qualified Data.Graph.Types as GT
 
 type DFATransition a = M.Map a State
 
-type DFAMapping a = M.Map State (DFATransition a)
+-- type DFAMapping a = M.Map State (DFATransition a)
+
+type DFAMapping a = GDG.DGraph State (S.Set a)
 
 data DFAStateMachine a = 
     DFAStatMac {   
@@ -30,11 +35,12 @@ data RunningDFA a =
     } deriving (Show)
 
 instance StateMachine DFAStateMachine where
-    constructStateMachine start accept states lang transitions = DFAStatMac start accept states lang (M.delete Dead $ toNestedMap transitions' const)
+    constructStateMachine start accept states lang transitions = DFAStatMac start accept states lang (GT.removeVertex Dead graph)
         where transitions' = filter (\(a,_,c) -> a `S.member` states && c `S.member` states) $ fmap (\(a,b,c) -> (a,b `S.intersection` lang, c)) transitions
+              graph = addArcs (toArcs (concatMap conv2 transitions')) GT.empty
     simpleConstructStateMachine start accept states lang transitions = constructStateMachine start (S.fromList accept) (S.fromList states) (S.fromList lang) (map (\(a, b, c) -> (a, S.singleton b, c)) transitions)
 
-    stepMachine state transition DFAStatMac {..} = S.singleton (M.findWithDefault Dead transition (M.findWithDefault M.empty state mapping))
+    stepMachine state transition DFAStatMac {..} = S.singleton $ findArcWithDefault Dead state transition mapping --S.singleton (M.findWithDefault Dead transition (M.findWithDefault M.empty state mapping))
 
     run xs iters dfa = returnState $ runSM $ runDFA xs iters dfa
 
@@ -59,3 +65,6 @@ exampleDFA = simpleConstructStateMachine (IdI 0) [IdI 3] [IdI 0, IdI 1, IdI 2, I
 
 emptyDFA :: DFAStateMachine Integer
 emptyDFA = simpleConstructStateMachine (IdI 0) [] [IdI 0] [] []
+
+emptyDGraph :: (Ord a) => GDG.DGraph State a
+emptyDGraph = GT.empty

@@ -6,12 +6,16 @@ import Lib
 
 import qualified Data.Map as M
 import qualified Data.Set as S
+import qualified Data.Maybe as Maybe
+import qualified Data.Graph as G
+import qualified Data.Graph.DGraph as GDG
+import qualified Data.Graph.Types as GT
 
 data NFATransitionType a = Epsilon | Val a deriving (Show, Eq, Ord)
 
-type NFATransition a = M.Map (NFATransitionType a) (S.Set State)
+-- type NFATransition a = M.Map (NFATransitionType a) (S.Set State)
 
-type NFAMapping a = M.Map State (NFATransition a)
+type NFAMapping a = GDG.DGraph State (S.Set (NFATransitionType a))
 
 data NFAStateMachine a = 
     NFAStatMac {   
@@ -31,8 +35,8 @@ data RunningNFA a =
         nfa :: NFAStateMachine a
     } deriving (Show)
 
-stepThroughEpsilons :: (Ord a) => State -> NFAStateMachine a -> S.Set State
-stepThroughEpsilons state NFAStatMac {..} = M.findWithDefault S.empty Epsilon (M.findWithDefault M.empty state mapping)
+stepThroughEpsilons :: State -> NFAStateMachine a -> S.Set State
+stepThroughEpsilons state NFAStatMac {..} = S.fromList map (GT.tripleDestVertex . GT.toTriple) $ findArcsMatching state Epsilon 
 
 getAllEpsilonStates :: (Ord a) => S.Set State -> NFAStateMachine a -> S.Set State
 getAllEpsilonStates s nfa
@@ -42,11 +46,14 @@ getAllEpsilonStates s nfa
 
 instance StateMachine NFAStateMachine where
     constructStateMachine start accept states lang transitions = NFAStatMac start accept states lang mapping
-        where transitions' = filter (\(a,_,c) -> a `S.member` states && c `S.isSubsetOf` states) $ fmap (\(a,b,c) -> (a,b `S.intersection` lang, S.singleton c)) transitions
-              mapping = M.map (M.mapKeys Val) $ M.delete Dead $ toNestedMap transitions' S.union
+        where transitions' = filter (\(a,_,c) -> a `S.member` states && c `S.member` states) $ fmap (\(a,b,c) -> (a,b `S.intersection` lang, c)) transitions
+              arcs = toArcs (concatMap conv2 transitions')
+              mapping = addArcs arcs GT.empty
     simpleConstructStateMachine start accept states lang transitions = constructStateMachine start (S.fromList accept) (S.fromList states) (S.fromList lang) (map (\(a, b, c) -> (a, S.singleton b, c)) transitions)
 
     stepMachine state transition nfa = getAllEpsilonStates (M.findWithDefault (S.singleton Dead) (Val transition) (M.findWithDefault M.empty state (mapping nfa))) nfa
+    stepMachine state transition nfa = getAllEpsilonStates (findArcsWith (\a -> transition `S.member` (GT.tripleAttribute . GT.toTriple) a)) nfa
+    
 
     run xs iters nfa = returnState $ runSM $ runNFA xs iters nfa
 
@@ -69,7 +76,9 @@ addNFATransitions :: (Ord a) => [(State, S.Set (NFATransitionType a), S.Set Stat
 addNFATransitions transitions NFAStatMac{..} = NFAStatMac startState acceptStates states language mapping'
     where language' = S.insert Epsilon $ S.map Val language
           transitions' = fmap (\(a,b,c) -> (a,b `S.intersection` language', c)) transitions
-          mapping' = M.unionWith (M.unionWith S.union) mapping (M.delete Dead $ toNestedMap transitions' S.union)
+          arcs = toArcs $ concatMap conv3 (concatMap conv2 transitions')
+          mapping' = addArcs arcs mapping
+        --   mapping' = M.unionWith (M.unionWith S.union) mapping (M.delete Dead $ toNestedMap transitions' S.union)
 
 simpleAddNFATransitions :: (Ord a) => [(State, NFATransitionType a, State)] -> NFAStateMachine a -> NFAStateMachine a
 simpleAddNFATransitions xs = addNFATransitions (map (\(a, b, c) -> (a, S.singleton b, S.singleton c)) xs)
