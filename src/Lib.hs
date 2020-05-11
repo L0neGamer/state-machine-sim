@@ -17,27 +17,55 @@ type Language a = S.Set a
 type Transition a = (State, State, a)
 type Transitions a = [Transition a]
 
-data ConsMod = Infer | Ignore deriving (Show, Eq)
-
 decRuntime :: Runtime -> Runtime
 decRuntime (I i) = I (i-1)
 decRuntime Infinite = Infinite
 
 allIntStates = map IdI [0,1..]
-q0:q1:q2:q3:q4:q5:q6:q7:q8:q9:xs = allIntStates
+
+-- constructStateMachine'' :: (Ord a, Ord b, Ord c, StateMachine sm) => (a -> b) -> (c -> c -> c) -> (States -> Language b -> TransitionsMap b c -> State -> AcceptStates -> sm a) -> ConsMod -> States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
+-- constructStateMachine'' langConv combiner constructor modifier states language transitions startState acceptStates
+--     | startState `S.notMember` states = error "start state not in set of states"
+--     | otherwise = constructor states (S.map langConv language) (fromTuplesToMap combiner $ transitions') startState acceptStates'
+
+getStatesAndLang :: Ord a => Transitions a -> (States, Language a)
+getStatesAndLang = foldr combine (S.empty, S.empty)
+    where combine (a, a', b) (as, bs) = (S.insert a (S.insert a' as), S.insert b bs)
+
+constructStateMachine'' :: (Ord a, Ord b) => (Language a -> Language b) -> (Transitions a -> transitionsMap) -> (States -> Language b -> transitionsMap -> State -> AcceptStates -> sm a) -> States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
+constructStateMachine'' langConv transitionsConv stateMachineCons states language transitions startState acceptStates
+    | startState `S.notMember` states = error "start state not in set of states"
+    | not (acceptStates `S.isSubsetOf` states) = error "accept states not subset of states"
+    | not (transitionStates `S.isSubsetOf` states) = error "transition states not subset of states"
+    | not ((langConv transitionLanguage) `S.isSubsetOf` language') = error "transition language not subset of language"
+    | otherwise = stateMachineCons states language' (transitionsConv transitions) startState acceptStates
+    where (transitionStates, transitionLanguage) = getStatesAndLang transitions
+          language' = langConv language
+
+constructStateMachine' :: (Ord a) => (Transitions a -> transitionsMap) -> (States -> Language a -> transitionsMap -> State -> AcceptStates -> sm a) -> States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
+constructStateMachine' = constructStateMachine'' id
 
 class StateMachine sm where
-    constructStateMachine' :: (Ord a) => ConsMod -> States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
     constructStateMachine :: (Ord a) => States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
-    constructStateMachine = constructStateMachine' Ignore
-    inferStateMachine :: (Ord a) => Transitions a -> State -> AcceptStates -> sm a
-    inferStateMachine = constructStateMachine' Infer S.empty S.empty
 
-    addTransition' :: (Ord a) => ConsMod -> Transition a -> sm a -> sm a
+    inferStateMachine :: (Ord a) => Transitions a -> State -> AcceptStates -> sm a
+    inferStateMachine transitions = constructStateMachine states language transitions
+        where (states, language) = getStatesAndLang transitions
+
+    smStates :: sm a -> States
+    smLanguage :: sm a -> Language a
+    smStartState :: sm a -> State
+    smAcceptStates :: sm a -> AcceptStates
+
     addTransition :: (Ord a) => Transition a -> sm a -> sm a
+    removeTransition :: (Ord a) => Transition a -> sm a -> sm a
+
+    addTransitions :: (Ord a) => Transitions a -> sm a -> sm a
+    addTransitions ts sm = foldr addTransition sm ts
 
     stepMachine :: (Ord a) => State -> a -> sm a -> States
     stepMachine Dead _ _ = S.singleton Dead
+
     run :: (Ord a) => [a] -> Runtime -> sm a -> ReturnState
 
 class RunningStateMachine rsm where

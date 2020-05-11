@@ -1,7 +1,7 @@
 module Main where
 
 import Lib
-import DFA
+-- import DFA
 -- import NFA
 -- import Convert
 -- import Regex

@@ -9,9 +9,6 @@ import Lib
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified NFA
-import qualified Lib (ReturnState)
-
-import Debug.Trace (trace)
 
 type Err = String
 
@@ -19,20 +16,14 @@ data RegexToken = LParen | RParen | Chr Char | KleeneStar | Alternation deriving
 
 type TokenStream = [RegexToken]
 
--- data RegexFormat = Val Char | Group [RegexFormat] | KleeneVal RegexFormat | AlternationVal RegexFormat RegexFormat
-
 data Base = BaseChar Char | BaseGroup Regex deriving (Show, Eq)
 data Factor = FactorSingle Base | FactorStar Factor deriving (Show, Eq)
 data Term = TermNil | TermFact Factor Term deriving (Show, Eq)
 data Regex = RegexSingle Term | RegexAlternation Term Regex deriving (Show, Eq)
 
+isChr :: RegexToken -> Bool
 isChr (Chr _) = True
 isChr _ = False
-
-baseSet = [isChr, (==LParen)]
-factorSet = baseSet
-termSet = factorSet
-regexSet = (==Alternation) : termSet
 
 charToToken :: Char -> RegexToken
 charToToken '*' = KleeneStar
@@ -56,9 +47,10 @@ parseRegex toks
 parseTerm :: TokenStream -> (TokenStream, Term)
 parseTerm [] = ([], TermNil)
 parseTerm (tok:toks)
-    | tok `isIn` factorSet = (toks'', TermFact fact fact')
+    | tok `isIn` baseChecks = (toks'', TermFact fact fact')
     | otherwise = (tok:toks, TermNil)
-    where (toks', fact) = parseFactor (tok:toks)
+    where baseChecks = [isChr, (==LParen)]
+          (toks', fact) = parseFactor (tok:toks)
           (toks'', fact') = parseTerm toks'
 
 parseFactor :: TokenStream -> (TokenStream, Factor)
@@ -74,7 +66,9 @@ parseBase :: TokenStream -> (TokenStream, Base)
 parseBase (Chr c:toks) = (toks, BaseChar c) 
 parseBase (LParen:toks)
     | checkNext toks' RParen = (tail toks', BaseGroup regex)
+    | otherwise = error $ "regex parentheses could not be parsed:\n\t" ++ show (LParen:toks)
     where (toks', regex) = parseRegex toks
+parseBase t = error $ "unexpected non-base token:" ++ show t
 
 checkNext :: TokenStream -> RegexToken -> Bool
 checkNext [] _ = False
@@ -89,48 +83,40 @@ strToParsedRegex str
     | otherwise = error $ "regex was not parsed correctly:\n\tLeftover:"  ++ show toks ++ "\n\tOriginal:" ++ show str
     where (toks, regex) = parseRegex . toTokens $ str
 
-regexToNFA :: Regex -> Integer -> (State, State, [(State, NFA.NFATransitionType Char, State)])
+regexToNFA :: Regex -> Integer -> (State, State, [(State, State, NFA.NFATransitionType Char)])
 regexToNFA (RegexSingle term) i = termToNFA term i
 regexToNFA (RegexAlternation term regex) i = (q0, q3, transitions)
     where q0 = IdI i
           (q1, IdI i', xs) = termToNFA term (i+1)
           (q2, IdI i'', xs') = regexToNFA regex (i'+1)
           q3 = IdI (i''+1)
-          transitions = xs ++ xs' ++ [(q0, NFA.Epsilon, q1), (q0, NFA.Epsilon, q2), (IdI i', NFA.Epsilon, q3), (IdI i'', NFA.Epsilon, q3)]
+          transitions = xs ++ xs' ++ [(q0, q1, NFA.Epsilon), (q0, q2, NFA.Epsilon), (IdI i', q3, NFA.Epsilon), (IdI i'', q3, NFA.Epsilon)]
 
-termToNFA :: Term -> Integer -> (State, State, [(State, NFA.NFATransitionType Char, State)])
+termToNFA :: Term -> Integer -> (State, State, [(State, State, NFA.NFATransitionType Char)])
 termToNFA TermNil i = (IdI i, IdI i, [])
 termToNFA (TermFact fact term) i = (q0, q2, transitions)
     where (q0, IdI i', xs) = factToNFA fact i
-          (q1, q2, xs') = termToNFA term i'
+          (_, q2, xs') = termToNFA term i'
           transitions = xs ++ xs'
 
-factToNFA :: Factor -> Integer -> (State, State, [(State, NFA.NFATransitionType Char, State)])
+factToNFA :: Factor -> Integer -> (State, State, [(State, State, NFA.NFATransitionType Char)])
 factToNFA (FactorStar fact) i = (q0, q1, transitions)
     where (q0, q1, xs) = factToNFA fact i
-          transitions = xs ++ [(q0, NFA.Epsilon, q1), (q1, NFA.Epsilon, q0)]
+          transitions = xs ++ [(q0, q1, NFA.Epsilon), (q1, q0, NFA.Epsilon)]
 factToNFA (FactorSingle base) i = baseToNFA base i
 
-baseToNFA :: Base -> Integer -> (State, State, [(State, NFA.NFATransitionType Char, State)])
-baseToNFA (BaseChar c) i = (IdI i, IdI (i+1), [(IdI i, NFA.Val c, IdI (i+1))])
+baseToNFA :: Base -> Integer -> (State, State, [(State, State, NFA.NFATransitionType Char)])
+baseToNFA (BaseChar c) i = (IdI i, IdI (i+1), [(IdI i, IdI (i+1), NFA.Val c)])
 baseToNFA (BaseGroup regex) i = regexToNFA regex i
 
-getMetaData :: [(State, NFA.NFATransitionType Char, State)] -> (S.Set State, S.Set Char)
-getMetaData [] = (S.empty, S.empty)
-getMetaData ((q0, NFA.Epsilon, q1):xs) = (S.insert q1 (S.insert q0 states), lang)
-    where (states, lang) = getMetaData xs
-getMetaData ((q0, NFA.Val c, q1):xs) = (S.insert q1 (S.insert q0 states), S.insert c lang)
-    where (states, lang) = getMetaData xs
-
 regexStrToNFA :: String -> NFA.NFAStateMachine Char
-regexStrToNFA str = NFA.simpleAddNFATransitions xs emptyMachine
+regexStrToNFA str = foldr NFA.addNFATransition emptyMachine (map (\(a,b,c) -> (a, S.singleton b, c)) xs)
     where (start, end, xs) = regexToNFA (strToParsedRegex str) 0
-          (states, lang) = getMetaData xs
-          emptyMachine = NFA.NFAStatMac start (S.singleton end) states lang M.empty
+          (states, lang) = getStatesAndLang xs
+          emptyMachine = NFA.NFAStatMac states lang M.empty start (S.singleton end)
 
+testRegexStr :: String
 testRegexStr = "ab(aab)*bb"
 
-parsedRegex = strToParsedRegex testRegexStr
-
 checkString :: String -> String -> ReturnState
-checkString inpStr regex = Lib.run inpStr Infinite (regexStrToNFA regex)
+checkString inpStr regex = run inpStr Infinite (regexStrToNFA regex)
