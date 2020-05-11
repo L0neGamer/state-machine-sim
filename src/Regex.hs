@@ -2,6 +2,8 @@
 module Regex
  where
 
+-- thanks to this page for help in this file: http://matt.might.net/articles/parsing-regex-with-recursive-descent/
+
 import Lib
 
 import qualified Data.Map as M

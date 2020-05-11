@@ -11,17 +11,32 @@ data ReturnState = Running | Timeout | Term Bool deriving (Eq, Show)
 
 data Runtime = I Integer | Infinite deriving (Show, Ord, Eq)
 
+type States = S.Set State
+type AcceptStates = States
+type Language a = S.Set a
+type Transition a = (State, State, a)
+type Transitions a = [Transition a]
+
+data ConsMod = Infer | Ignore deriving (Show, Eq)
+
 decRuntime :: Runtime -> Runtime
 decRuntime (I i) = I (i-1)
 decRuntime Infinite = Infinite
 
-type States = S.Set State
-type AcceptStates = States
+allIntStates = map IdI [0,1..]
+q0:q1:q2:q3:q4:q5:q6:q7:q8:q9:xs = allIntStates
 
 class StateMachine sm where
-    constructStateMachine :: (Ord a) => State -> AcceptStates -> States -> S.Set a -> [(State, S.Set a, State)] -> sm a
-    simpleConstructStateMachine :: (Ord a) => State -> [State] -> [State] -> [a] -> [(State, a, State)] -> sm a
-    stepMachine :: (Ord a) => State -> a -> sm a -> S.Set State
+    constructStateMachine' :: (Ord a) => ConsMod -> States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
+    constructStateMachine :: (Ord a) => States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
+    constructStateMachine = constructStateMachine' Ignore
+    inferStateMachine :: (Ord a) => Transitions a -> State -> AcceptStates -> sm a
+    inferStateMachine = constructStateMachine' Infer S.empty S.empty
+
+    addTransition' :: (Ord a) => ConsMod -> Transition a -> sm a -> sm a
+    addTransition :: (Ord a) => Transition a -> sm a -> sm a
+
+    stepMachine :: (Ord a) => State -> a -> sm a -> States
     stepMachine Dead _ _ = S.singleton Dead
     run :: (Ord a) => [a] -> Runtime -> sm a -> ReturnState
 
@@ -34,21 +49,10 @@ class RunningStateMachine rsm where
         | otherwise = running'
         where running' = step running
 
-toNestedMap' :: (Ord a, Ord b) => [(a,b,c)] -> (c -> c -> c) -> M.Map a (M.Map b c)
-toNestedMap' [] _ = M.empty
-toNestedMap' ((a, b, c):xs) f = M.insertWith (\_ m -> M.insertWith f b c (res M.! a)) a (M.singleton b c) res
-    -- | a `M.member` res = M.insert a  res
-    -- | otherwise = M.insert a  res
-    where res = toNestedMap' xs f
-
-conv :: (Ord b) => (a, S.Set b, c) -> [(a, b, c)]
-conv (a, s, c) = map (a, , c) (S.toList s)
-
-toNestedMap :: (Ord a, Ord b) => [(a,S.Set b,c)] -> (c -> c -> c) -> M.Map a (M.Map b c)
-toNestedMap xs = toNestedMap' (concatMap conv xs)
-
-fromTupleList :: (Ord b) => [(a,b,c)] -> [(a,S.Set b,c)]
-fromTupleList = map (\(a,b,c) -> (a, S.singleton b, c))
+fromTuplesToMap :: (Ord a, Ord c) => (b -> b -> b) -> [(a, b, c)] -> M.Map a (M.Map c b)
+fromTuplesToMap _ []             = M.empty
+fromTuplesToMap f ((a, b, c):xs) = M.unionWith (M.unionWith f) (M.singleton a (M.singleton c b)) mp
+    where mp = fromTuplesToMap f xs          
 
 fromSingleton :: S.Set a -> a
 fromSingleton (S.toList -> [x]) = x
@@ -58,3 +62,27 @@ someFunc :: IO ()
 someFunc = putStrLn "someFunc"
 
 ones = 1:ones
+
+tripleFirst (a,_,_) = a
+tripleSecond (_,a,_) = a
+tripleThird (_,_,a) = a
+
+tupleSectionFirst (a, b, c) = (, b, c)
+tupleSectionSecond (a, b, c) = (a, , c)
+tupleSectionThird (a, b, c) = (a, b, )
+
+expandVar :: (t -> a -> b) -> (t -> [a]) -> t -> [b]
+expandVar tupleSection chosenTriple x = fmap (tupleSection x) (chosenTriple x)
+
+expandFirst :: [([a], b, c)] -> [(a, b, c)]
+expandFirst = concatMap (expandVar tupleSectionFirst tripleFirst)
+expandSecond :: [(a, [b], c)] -> [(a, b, c)]
+expandSecond = concatMap (expandVar tupleSectionSecond tripleSecond)
+expandThird :: [(a, b, [c])] -> [(a, b, c)]
+expandThird = concatMap (expandVar tupleSectionThird tripleThird)
+-- expandFirst (a, b, c) = fmap (, b, c) a
+-- expandFirst (a, b, c) = fmap (, b, c) a
+
+-- expandSource :: (Functor f) => [(f a, b, c)] -> [(a, b, c)]
+-- expandSource xs = map expandFirst xs
+
