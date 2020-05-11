@@ -45,13 +45,6 @@ toNFATransition (a, b, c) = (a, S.singleton b, Val c)
 
 instance StateMachine NFAStateMachine where
     constructStateMachine states language = constructStateMachine'' (S.map Val) (\t -> fromTuplesToMap S.union $ map toNFATransition t) NFAStatMac states language
-
-    -- constructStateMachine states language transitions startState acceptStates
-    --     | startState `S.notMember` states = error "start state not in set of states"
-    --     | otherwise = NFAStatMac states (S.map Val language) transitions'' startState acceptStates'
-    --     where transitions' = map (\(a, b, c) -> (a, Val b, S.singleton c)) $ filter (\(a, b, c) -> S.fromList [a, b] `S.isSubsetOf` states && c `S.member` language && any (/=Dead) [a, b]) transitions
-    --           transitions'' = fromTuplesToMap S.union transitions'
-    --           acceptStates' = acceptStates `S.intersection` states
     
     addTransition t = addNFATransition (toNFATransition t)
     removeTransition t = removeNFATransition (toNFATransition t)
@@ -81,27 +74,7 @@ addNFATransition (start, dest, val) NFAStatMac{..}
     | not ((S.insert start dest) `S.isSubsetOf` states) = error "transition states not subset of states"
     | val `S.notMember` language = error "transition language not subset of language"
     | otherwise = NFAStatMac states language (M.unionWith (M.unionWith S.union) (M.singleton start (M.singleton val dest)) transitions) startState acceptStates
-    
+
 removeNFATransition :: (Ord a) => (State, S.Set State, (NFATransitionType a)) -> NFAStateMachine a -> NFAStateMachine a
 removeNFATransition (start, dest, val) NFAStatMac{..} = NFAStatMac states language (M.insert start (M.insert val (S.difference dest $ M.findWithDefault S.empty val submap) submap) transitions) startState acceptStates
     where submap = M.findWithDefault M.empty start transitions
-
--- addNFATransitions :: (Ord a) => Transitions (NFATransitionType a) -> NFAStateMachine a -> NFAStateMachine a
--- addNFATransitions transitions' NFAStatMac{..} = NFAStatMac startState acceptStates states language mapping'
---     where language' = S.union language $ S.fromList $ map tripleThird transitions'
---           transitions'' = transitions''
---           mapping' = M.unionWith (M.unionWith S.union) mapping (M.delete Dead $ toNestedMap transitions' S.union)
-
--- simpleAddNFATransitions :: (Ord a) => [(State, NFATransitionType a, State)] -> NFAStateMachine a -> NFAStateMachine a
--- simpleAddNFATransitions xs = addNFATransitions (map (\(a, b, c) -> (a, S.singleton b, S.singleton c)) xs)
-
--- -- -- accepts 101*0(0*1*)*
--- exampleNFA :: NFAStateMachine Integer
--- exampleNFA = constructStateMachine (S.fromList [q0,q1,q2,q3]) (S.fromList lang) (expandSecond [(IdI 3, lang, IdI 3),(IdI 3, lang, IdI 1)] ++ [(IdI 0, 1, IdI 1), (IdI 1, 0, IdI 2), (IdI 2, 1, IdI 2), (IdI 2, 0, IdI 3)]) (IdI 0) (S.fromList [IdI 3]) 
---     where lang = [0,1]
-
--- exampleNFA' :: NFAStateMachine Integer
--- exampleNFA' = addNFATransitions [(q0, q3, Epsilon)] exampleNFA
-
--- emptyNFA :: NFAStateMachine Integer
--- emptyNFA = constructStateMachine (S.fromList [q0]) S.empty [] q0 S.empty

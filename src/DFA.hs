@@ -6,7 +6,6 @@ import Lib
 
 import qualified Data.Map as M
 import qualified Data.Set as S
-import Data.Function (on)
 
 type DFATransition a = M.Map a State
 
@@ -30,9 +29,6 @@ data RunningDFA a =
         dfa :: DFAStateMachine a
     } deriving (Show)
 
--- dfaTransitions :: (Ord a, Ord c) => [(a, b, c)] -> M.Map a (M.Map c b)
--- dfaTransitions = fromTuplesToMap const
-
 instance StateMachine DFAStateMachine where
     constructStateMachine = constructStateMachine' (fromTuplesToMap const) DFAStatMac
 
@@ -41,24 +37,10 @@ instance StateMachine DFAStateMachine where
         | val `S.notMember` language = error "transition language not subset of language"
         | otherwise = DFAStatMac states language (M.unionWith M.union (M.singleton start (M.singleton val dest)) transitions) startState acceptStates
 
-    removeTransition (start, dest, val) DFAStatMac{..} = DFAStatMac states language (M.insert start (M.delete val (M.findWithDefault M.empty start transitions)) transitions) startState acceptStates
-
-    smStates = states
-    smLanguage = language
-    smStartState = startState
-    smAcceptStates = acceptStates
-
-    -- mergeOver sm sm' = DFAStatMac (onUnion states) (onUnion language) (on (M.unionWith (M.unionWith const)) transitions )
-    --     where onSM f access = on f access sm sm'
-    --           onUnion = onSM S.union
-
-    -- constructStateMachine states language transitions startState acceptStates
-    --     | startState `S.notMember` states = error "start state not in set of states"
-    --     | otherwise = DFAStatMac states language (dfaTransitions transitions') startState acceptStates'
-    --     where states' = S.insert startState $ S.union (S.union states acceptStates) (S.union (S.fromList (map tripleFirst transitions)) (S.fromList (map tripleSecond transitions)))
-    --           language' = S.union language (S.fromList (map tripleThird transitions))
-    --           transitions' = filter (\(a, b, c) -> S.fromList [a, b] `S.isSubsetOf` states && c `S.member` language && any (/=Dead) [a, b]) transitions
-    --           acceptStates' = acceptStates `S.intersection` states
+    removeTransition (start, dest, val) dfa@DFAStatMac{..}
+        | M.findWithDefault Dead val submap == dest = DFAStatMac states language (M.insert start (M.delete val (M.findWithDefault M.empty start transitions)) transitions) startState acceptStates
+        | otherwise = dfa
+        where submap = M.findWithDefault M.empty start transitions
               
     stepMachine state transition DFAStatMac {..} = S.singleton (M.findWithDefault Dead transition (M.findWithDefault M.empty state transitions))
 
@@ -79,7 +61,8 @@ instance RunningStateMachine RunningDFA where
 runDFA :: (Ord a) => [a] -> Runtime -> DFAStateMachine a -> RunningDFA a
 runDFA xs iters dfa = RunDFA xs (startState dfa) Running iters dfa
 
-q0:q1:q2:q3:q4:q5:q6:q7:q8:q9:_ = allIntStates
+q0, q1, q2, q3, q4, q5 :: State
+q0:q1:q2:q3:q4:q5:_ = allIntStates
 
 -- accepts 101*0
 exampleDFA :: DFAStateMachine Integer

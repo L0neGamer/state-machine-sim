@@ -21,12 +21,8 @@ decRuntime :: Runtime -> Runtime
 decRuntime (I i) = I (i-1)
 decRuntime Infinite = Infinite
 
+allIntStates :: [State]
 allIntStates = map IdI [0,1..]
-
--- constructStateMachine'' :: (Ord a, Ord b, Ord c, StateMachine sm) => (a -> b) -> (c -> c -> c) -> (States -> Language b -> TransitionsMap b c -> State -> AcceptStates -> sm a) -> ConsMod -> States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
--- constructStateMachine'' langConv combiner constructor modifier states language transitions startState acceptStates
---     | startState `S.notMember` states = error "start state not in set of states"
---     | otherwise = constructor states (S.map langConv language) (fromTuplesToMap combiner $ transitions') startState acceptStates'
 
 getStatesAndLang :: Ord a => Transitions a -> (States, Language a)
 getStatesAndLang = foldr combine (S.empty, S.empty)
@@ -51,11 +47,6 @@ class StateMachine sm where
     inferStateMachine :: (Ord a) => Transitions a -> State -> AcceptStates -> sm a
     inferStateMachine transitions = constructStateMachine states language transitions
         where (states, language) = getStatesAndLang transitions
-
-    smStates :: sm a -> States
-    smLanguage :: sm a -> Language a
-    smStartState :: sm a -> State
-    smAcceptStates :: sm a -> AcceptStates
 
     addTransition :: (Ord a) => Transition a -> sm a -> sm a
     removeTransition :: (Ord a) => Transition a -> sm a -> sm a
@@ -88,29 +79,4 @@ fromSingleton _ = error "tried to get single item from non-singleton set"
 
 someFunc :: IO ()
 someFunc = putStrLn "someFunc"
-
-ones = 1:ones
-
-tripleFirst (a,_,_) = a
-tripleSecond (_,a,_) = a
-tripleThird (_,_,a) = a
-
-tupleSectionFirst (a, b, c) = (, b, c)
-tupleSectionSecond (a, b, c) = (a, , c)
-tupleSectionThird (a, b, c) = (a, b, )
-
-expandVar :: (t -> a -> b) -> (t -> [a]) -> t -> [b]
-expandVar tupleSection chosenTriple x = fmap (tupleSection x) (chosenTriple x)
-
-expandFirst :: [([a], b, c)] -> [(a, b, c)]
-expandFirst = concatMap (expandVar tupleSectionFirst tripleFirst)
-expandSecond :: [(a, [b], c)] -> [(a, b, c)]
-expandSecond = concatMap (expandVar tupleSectionSecond tripleSecond)
-expandThird :: [(a, b, [c])] -> [(a, b, c)]
-expandThird = concatMap (expandVar tupleSectionThird tripleThird)
--- expandFirst (a, b, c) = fmap (, b, c) a
--- expandFirst (a, b, c) = fmap (, b, c) a
-
--- expandSource :: (Functor f) => [(f a, b, c)] -> [(a, b, c)]
--- expandSource xs = map expandFirst xs
 
