@@ -66,7 +66,7 @@ instance StateMachine NFAStateMachine where
 instance RunningStateMachine RunningNFA where
     step RunNFA{word=[],..} = RunNFA [] currentStates (Term (not $ S.disjoint currentStates (acceptStates nfa))) remainingIter nfa
     step RunNFA{word=x:xs,..}
-        | remainingIter < I 1 = RunNFA (x:xs) currentStates Timeout remainingIter nfa
+        | remainingIter < I 1 0 = RunNFA (x:xs) currentStates Timeout remainingIter nfa
         | currentStates == S.singleton Dead = RunNFA (x:xs) currentStates (Term False) remainingIter nfa
         | otherwise = runningNFA
         where next = S.unions $ S.map (\cs -> stepMachine cs x nfa) currentStates

@@ -11,7 +11,7 @@ data State = IdI Integer | IdS String | Dead deriving (Eq, Ord, Show)
 
 data ReturnValue = Running | Timeout | Term Bool deriving (Eq, Show)
 
-data Clock = I Integer | Infinite Integer deriving (Show, Ord, Eq)
+data Clock = I Integer Integer | Infinite Integer deriving (Show, Ord, Eq)
 
 type States = S.Set State
 type AcceptStates = States
@@ -20,8 +20,12 @@ type Transition a = (State, State, a)
 type Transitions a = [Transition a]
 
 tickClock :: Clock -> Clock
-tickClock (I i) = I (i-1)
+tickClock (I i j) = I (i-1) j
 tickClock (Infinite i) = Infinite (i+1)
+
+getTime :: Clock -> Integer
+getTime (I i j) = j - i
+getTime (Infinite i) = i
 
 allIntStates :: [State]
 allIntStates = map IdI [0,1..]

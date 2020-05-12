@@ -26,8 +26,10 @@ data Tape a = Tape {
 }
 
 instance Show a => Show (Tape a) where
-    show Tape{..} = "Tape " ++ show cursor ++ " " ++ show (genericTake cursor' right) ++ " " ++ show (genericTake cursor' left)
+    show Tape{..} = "Tape " ++ cursorDisplay ++ " " ++ show (genericTake cursor' right) ++ " " ++ show (genericTake cursor' left)
         where cursor' = max ((abs cursor) * 2) 10
+              cursorDisplay | cursor < 0 = "(" ++ show cursor ++ ")"
+                            | otherwise = show cursor
 
 (!<) :: Tape a -> Integer -> a
 (!<) Tape{..} i
@@ -112,6 +114,7 @@ instance RunningStateMachine RunningTM where
     step RunTM{currentState=Dead,..} = RunTM tape Dead (Term False) remainingIter turingMachine
     step RunTM{..}
         | currentState `S.member` (acceptStates turingMachine) = RunTM tape currentState (Term True) remainingIter turingMachine
+        | remainingIter < I 1 0 = RunTM tape currentState Timeout remainingIter turingMachine
         | otherwise = runningTM
         where (nextState, toWrite, dir) = stepTuringMachine currentState (getVal tape) turingMachine
               tape' = insertVal toWrite tape
@@ -124,11 +127,36 @@ integerTape = Tape 0 [0,0..] [0,0..]
 q0, q1, q2, q3, q4, q5 :: State
 q0:q1:q2:q3:q4:q5:_ = allIntStates
 
-busyBeaver3State :: TuringMachine Integer
-busyBeaver3State = inferTuringMachine 0 q0 (S.singleton q3) transitions
-    where transitions = ([(q0,q1,(0,1,R)), (q0,q2,(1,1,L)),
-                          (q1,q0,(0,1,L)), (q1,q1,(1,1,R)),
-                          (q2,q1,(0,1,L)), (q2,q3,(1,1,R))])
+qH :: State
+qH = IdI (-1)
 
-busyBeaverCheck :: Tape Integer
-busyBeaverCheck = tape $ runTuringMachine' [] (Infinite 0) busyBeaver3State
+type BusyBeaverStore = (Integer, Integer, TuringMachine Integer)
+
+-- 6 1s, 14 steps
+busyBeaver3State :: BusyBeaverStore
+busyBeaver3State = (6, 14, inferTuringMachine 0 q0 (S.singleton qH) transitions)
+    where transitions = ([(q0,q1,(0,1,R)), (q0,qH,(1,1,R)),
+                          (q1,q2,(0,0,R)), (q1,q1,(1,1,R)),
+                          (q2,q2,(0,1,L)), (q2,q0,(1,1,L))])
+
+-- 13 1s, 107 steps
+busyBeaver4State :: BusyBeaverStore
+busyBeaver4State = (13, 107, inferTuringMachine 0 q0 (S.singleton qH) transitions)
+    where transitions = ([(q0,q1,(0,1,R)), (q0,q1,(1,1,L)),
+                          (q1,q0,(0,1,L)), (q1,q2,(1,0,L)),
+                          (q2,qH,(0,1,R)), (q2,q3,(1,1,L)),
+                          (q3,q3,(0,1,R)), (q3,q0,(1,0,R))])
+
+-- 4098 1s, 47176870 steps
+busyBeaver5State :: BusyBeaverStore
+busyBeaver5State = (4098, 47176870, inferTuringMachine 0 q0 (S.singleton qH) transitions)
+    where transitions = ([(q0,q1,(0,1,R)), (q0,q2,(1,1,L)),
+                          (q1,q2,(0,1,R)), (q1,q1,(1,1,R)),
+                          (q2,q3,(0,1,R)), (q2,q4,(1,0,L)),
+                          (q3,q0,(0,1,L)), (q3,q3,(1,1,L)),
+                          (q4,qH,(0,1,R)), (q4,q0,(1,0,L))])
+
+busyBeaverCheck :: BusyBeaverStore -> (Integer, Integer, RunningTM Integer)
+busyBeaverCheck (ones, steps, tm) = (ones - tapeSum, steps - getTime (remainingIter runMachine) , runMachine)
+    where runMachine = runTuringMachine' [] (I 5000 5000) tm
+          tapeSum = (sum (take 5000 $ right (tape runMachine))) + (sum (take 5000 $ left (tape runMachine)))

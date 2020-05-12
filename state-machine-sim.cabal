@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a3acffb2c45eecce3ecfc0aadccf1245f2c5ed08948e1aa20c2a1e862453e15f
+-- hash: dc2d4306a29534c216ec849dba54c3628d10737e8b9452ebe5ea7844a84c8f20
 
 name:           state-machine-sim
 version:        0.1.0.0
@@ -40,9 +40,6 @@ library
   build-depends:
       base >=4.7 && <5
     , containers
-    , graphite
-    , graphviz
-    , hashable
   default-language: Haskell2010
 
 executable state-machine-sim-exe
@@ -55,9 +52,6 @@ executable state-machine-sim-exe
   build-depends:
       base >=4.7 && <5
     , containers
-    , graphite
-    , graphviz
-    , hashable
     , state-machine-sim
   default-language: Haskell2010
 
@@ -72,8 +66,5 @@ test-suite state-machine-sim-test
   build-depends:
       base >=4.7 && <5
     , containers
-    , graphite
-    , graphviz
-    , hashable
     , state-machine-sim
   default-language: Haskell2010

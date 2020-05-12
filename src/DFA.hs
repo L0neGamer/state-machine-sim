@@ -55,7 +55,7 @@ instance StateMachine DFAStateMachine where
 instance RunningStateMachine RunningDFA where
     step RunDFA{word=[],..} = RunDFA [] currentState (Term (currentState `S.member` acceptStates dfa)) remainingIter dfa
     step RunDFA{word=x:xs,..}
-        | remainingIter < I 1 = RunDFA (x:xs) currentState Timeout remainingIter dfa
+        | remainingIter < I 1 0 = RunDFA (x:xs) currentState Timeout remainingIter dfa
         | otherwise = runningDFA
         where nextState = fromSingleton $ stepMachine currentState x dfa
               returnValue' | nextState == Dead = Term False
