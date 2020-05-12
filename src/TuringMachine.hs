@@ -10,8 +10,8 @@ import Data.List (genericTake)
 
 data Sym a = Blank | Val a deriving (Show, Eq, Ord)
 
-data TapeDir = L 
-             | R 
+data TapeDir = L
+             | R
              deriving (Show, Eq)
 
 type TuringTransition a = M.Map a (State, a, TapeDir)
@@ -39,8 +39,8 @@ moveCursor R Tape{..} = Tape (tail right) (head right:left) (cursor + 1)
 insertVal :: a -> Tape a -> Tape a
 insertVal val Tape{..} = Tape (val:tail right) left cursor
 
-data TuringMachine a = 
-    TuringMac {   
+data TuringMachine a =
+    TuringMac {
         states :: States,
         language :: Language a,
         blank :: a,

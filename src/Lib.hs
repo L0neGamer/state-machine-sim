@@ -96,7 +96,7 @@ class RunningStateMachine rsm where
 fromTuplesToMap :: (Ord a, Ord c) => (b -> b -> b) -> [(a, b, c)] -> M.Map a (M.Map c b)
 fromTuplesToMap _ []             = M.empty
 fromTuplesToMap f ((a, b, c):xs) = M.unionWith (M.unionWith f) (M.singleton a (M.singleton c b)) mp
-    where mp = fromTuplesToMap f xs          
+    where mp = fromTuplesToMap f xs
 
 fromSingleton :: S.Set a -> a
 fromSingleton (S.toList -> [x]) = x

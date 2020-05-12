@@ -11,8 +11,8 @@ type DFATransition a = M.Map a State
 
 type DFATransitions a = M.Map State (DFATransition a)
 
-data DFAStateMachine a = 
-    DFAStatMac {   
+data DFAStateMachine a =
+    DFAStatMac {
         states :: States,
         language :: Language a,
         transitions :: DFATransitions a,
@@ -41,7 +41,7 @@ instance StateMachine DFAStateMachine where
         | M.findWithDefault Dead val submap == dest = DFAStatMac states language (M.insert start (M.delete val (M.findWithDefault M.empty start transitions)) transitions) startState acceptStates
         | otherwise = dfa
         where submap = M.findWithDefault M.empty start transitions
-              
+
     stepMachine state transition DFAStatMac {..} = S.singleton (M.findWithDefault Dead transition (M.findWithDefault M.empty state transitions))
 
     run xs iters dfa = returnValue $ runSM $ runDFA xs iters dfa

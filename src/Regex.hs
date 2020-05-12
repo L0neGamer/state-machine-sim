@@ -63,7 +63,7 @@ parseFactor' (KleeneStar:toks) fact = parseFactor' toks (FactorStar fact)
 parseFactor' toks fact = (toks, fact)
 
 parseBase :: TokenStream -> (TokenStream, Base)
-parseBase (Chr c:toks) = (toks, BaseChar c) 
+parseBase (Chr c:toks) = (toks, BaseChar c)
 parseBase (LParen:toks)
     | checkNext toks' RParen = (tail toks', BaseGroup regex)
     | otherwise = error $ "regex parentheses could not be parsed:\n\t" ++ show (LParen:toks)

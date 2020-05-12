@@ -13,8 +13,8 @@ type NFATransition a = M.Map (NFATransitionType a) States
 
 type NFATransitions a = M.Map State (NFATransition a)
 
-data NFAStateMachine a = 
-    NFAStatMac {   
+data NFAStateMachine a =
+    NFAStatMac {
         states :: States,
         language :: Language (NFATransitionType a),
         transitions :: NFATransitions a,
@@ -48,10 +48,10 @@ removeEpsilons s = S.map (\(Val a) -> a) $ S.filter (/=Epsilon) s
 
 instance StateMachine NFAStateMachine where
     constructStateMachine states language = constructStateMachine'' (S.map Val) (\t -> fromTuplesToMap S.union $ map toNFATransition t) NFAStatMac states language
-    
+
     addTransition t = addNFATransition (toNFATransition t)
     removeTransition t = removeNFATransition (toNFATransition t)
-              
+
     stepMachine state transition nfa = expandEpsilon nfa (S.unions $ S.map getStates (expandEpsilon nfa (S.singleton state)))
         where getStates s = (M.findWithDefault (S.singleton Dead) (Val transition) (M.findWithDefault M.empty s (transitions nfa)))
 
@@ -71,7 +71,7 @@ instance RunningStateMachine RunningNFA where
         | otherwise = runningNFA
         where next = S.unions $ S.map (\cs -> stepMachine cs x nfa) currentStates
               runningNFA = RunNFA xs next Running (tickClock remainingIter) nfa
-    
+
     getReturnValue = returnValue
 
 runNFA :: (Ord a) => [a] -> Clock -> NFAStateMachine a -> RunningNFA a
