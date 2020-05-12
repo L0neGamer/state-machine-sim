@@ -1,10 +1,12 @@
 module Main where
 
 import Lib
--- import DFA
+import DFA
 -- import NFA
 -- import Convert
 -- import Regex
 
 main :: IO ()
-main = someFunc
+main = do
+    -- printGraph exampleDFA
+    print "main_end"

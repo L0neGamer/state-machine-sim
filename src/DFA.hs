@@ -6,6 +6,8 @@ import Lib
 
 import qualified Data.Map as M
 import qualified Data.Set as S
+import Data.Graph.Types as DGT (Arc(Arc), Graph(insertEdgeTriples, empty))
+import Data.Graph.DGraph (DGraph)
 
 type DFATransition a = M.Map a State
 
@@ -25,7 +27,7 @@ data RunningDFA a =
         word :: [a],
         currentState :: State,
         returnState :: ReturnState,
-        remainingIter :: Runtime,
+        remainingIter :: Clock,
         dfa :: DFAStateMachine a
     } deriving (Show)
 
@@ -46,6 +48,18 @@ instance StateMachine DFAStateMachine where
 
     run xs iters dfa = returnState $ runSM $ runDFA xs iters dfa
 
+    smAcceptStates = acceptStates
+
+    nextStates dfa@DFAStatMac{..} s = foldr S.union S.empty $ S.map (\l -> stepMachine s l dfa) language
+
+    reachableStates dfa curr = reachableStates' dfa (S.singleton curr) S.empty
+
+    toGraph DFAStatMac{..} = insertEdgeTriples (concat $ map getArcs keys) DGT.empty
+        where keys = M.keys transitions
+              getArcs key = map (\(a,b) -> (key, a, b)) $ combine $ M.toList $ transitions M.! key
+
+--map (\(a, dest) -> (key, dest, a)) $ 
+
 instance RunningStateMachine RunningDFA where
     step RunDFA{word=[],..} = RunDFA [] currentState (Term (currentState `S.member` acceptStates dfa)) remainingIter dfa
     step RunDFA{word=x:xs,..}
@@ -54,11 +68,11 @@ instance RunningStateMachine RunningDFA where
         where nextState = fromSingleton $ stepMachine currentState x dfa
               returnState' | nextState == Dead = Term False
                            | otherwise = Running
-              runningDFA = RunDFA xs nextState returnState' (decRuntime remainingIter) dfa
+              runningDFA = RunDFA xs nextState returnState' (tickClock remainingIter) dfa
 
     getReturnState = returnState
 
-runDFA :: (Ord a) => [a] -> Runtime -> DFAStateMachine a -> RunningDFA a
+runDFA :: (Ord a) => [a] -> Clock -> DFAStateMachine a -> RunningDFA a
 runDFA xs iters dfa = RunDFA xs (startState dfa) Running iters dfa
 
 q0, q1, q2, q3, q4, q5 :: State
@@ -70,3 +84,5 @@ exampleDFA = inferStateMachine [(q0, q1, 1), (q1, q2, 0), (q2, q2, 1), (q2, q3, 
 
 emptyDFA :: DFAStateMachine Integer
 emptyDFA = constructStateMachine (S.fromList [q0]) S.empty [] q0 S.empty
+
+exFunc = reachableStates exampleDFA (IdI 0)
