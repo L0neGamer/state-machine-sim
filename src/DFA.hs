@@ -6,8 +6,6 @@ import Lib
 
 import qualified Data.Map as M
 import qualified Data.Set as S
-import Data.Graph.Types as DGT (Arc(Arc), Graph(insertEdgeTriples, empty))
-import Data.Graph.DGraph (DGraph)
 
 type DFATransition a = M.Map a State
 
@@ -54,12 +52,6 @@ instance StateMachine DFAStateMachine where
 
     reachableStates dfa curr = reachableStates' dfa (S.singleton curr) S.empty
 
-    toGraph DFAStatMac{..} = insertEdgeTriples (concat $ map getArcs keys) DGT.empty
-        where keys = M.keys transitions
-              getArcs key = map (\(a,b) -> (key, a, b)) $ combine $ M.toList $ transitions M.! key
-
---map (\(a, dest) -> (key, dest, a)) $ 
-
 instance RunningStateMachine RunningDFA where
     step RunDFA{word=[],..} = RunDFA [] currentState (Term (currentState `S.member` acceptStates dfa)) remainingIter dfa
     step RunDFA{word=x:xs,..}
@@ -84,5 +76,3 @@ exampleDFA = inferStateMachine [(q0, q1, 1), (q1, q2, 0), (q2, q2, 1), (q2, q3, 
 
 emptyDFA :: DFAStateMachine Integer
 emptyDFA = constructStateMachine (S.fromList [q0]) S.empty [] q0 S.empty
-
-exFunc = reachableStates exampleDFA (IdI 0)
