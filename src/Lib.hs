@@ -91,4 +91,4 @@ fromTuplesToMap f ((a, b, c):xs) = M.unionWith (M.unionWith f) (M.singleton a (M
 
 fromSingleton :: S.Set a -> a
 fromSingleton (S.toList -> [x]) = x
-fromSingleton x = error $ "tried to get single item from non-singleton set"
+fromSingleton _ = error $ "tried to get single item from non-singleton set"

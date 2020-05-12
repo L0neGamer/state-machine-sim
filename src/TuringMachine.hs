@@ -8,8 +8,6 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.List (genericSplitAt, genericIndex, genericTake)
 
-import Debug.Trace (trace)
-
 data Sym a = Blank | Val a deriving (Show, Eq, Ord)
 
 data TapeDir = L 
@@ -101,6 +99,7 @@ stepTuringMachine state transition TuringMac{..} = M.findWithDefault (Dead, tran
 runTuringMachine' :: (Ord a) => [a] -> Clock -> TuringMachine a -> RunningTM a
 runTuringMachine' xs iters tm = runSM $ runTM xs iters tm
 
+runTuringMachine :: (Ord a) => [a] -> Clock -> TuringMachine a -> ReturnValue
 runTuringMachine xs iters tm = returnValue $ runTuringMachine' xs iters tm
 
 runTM :: (Ord a) => [a] -> Clock -> TuringMachine a -> RunningTM a
