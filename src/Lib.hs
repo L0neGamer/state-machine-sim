@@ -52,6 +52,9 @@ constructStateMachine'' langConv transitionsConv stateMachineCons states languag
 constructStateMachine' :: (Ord a) => (Transitions a -> transitionsMap) -> (States -> Language a -> transitionsMap -> State -> AcceptStates -> sm a) -> States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
 constructStateMachine' = constructStateMachine'' id
 
+-- TODO: https://archives.haskell.org/projects.haskell.org/diagrams/tutorials.html
+-- or https://discordapp.com/channels/195989586260918272/222003210670440451/709816458921640057
+
 class StateMachine sm where
     constructStateMachine :: (Ord a) => States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
 
