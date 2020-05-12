@@ -6,12 +6,11 @@ import Lib
 
 import qualified Data.Map as M
 import qualified Data.Set as S
-import Data.List (genericSplitAt, genericIndex, genericTake)
+import Data.List (genericTake)
 
 data Sym a = Blank | Val a deriving (Show, Eq, Ord)
 
 data TapeDir = L 
-            --  | N 
              | R 
              deriving (Show, Eq)
 
@@ -20,42 +19,25 @@ type TuringTransition a = M.Map a (State, a, TapeDir)
 type TuringTransitions a = M.Map State (TuringTransition a)
 
 data Tape a = Tape {
-      cursor :: Integer
-    , right  :: [a]
+      right  :: [a]
     , left   :: [a]
+    , cursor :: Integer
 }
 
 instance Show a => Show (Tape a) where
-    show Tape{..} = "Tape " ++ cursorDisplay ++ " " ++ show (genericTake cursor' right) ++ " " ++ show (genericTake cursor' left)
-        where cursor' = max ((abs cursor) * 2) 10
-              cursorDisplay | cursor < 0 = "(" ++ show cursor ++ ")"
+    show Tape{..} = "Tape " ++ show (take 10 right) ++ (' ':show (take 10 left)) ++ ' ':displayCursor
+        where displayCursor | cursor < 0 = '(':show cursor ++ ")"
                             | otherwise = show cursor
 
-(!<) :: Tape a -> Integer -> a
-(!<) Tape{..} i
-    | i < 0 = left `genericIndex` ((abs i) - 1)
-    | otherwise = right `genericIndex` i
-
 getVal :: Tape a -> a
-getVal t@Tape{..} = t !< cursor
+getVal Tape{..} = head right
 
 moveCursor :: TapeDir -> Tape a -> Tape a
-moveCursor L Tape{..} = Tape (cursor - 1) right left
-moveCursor R Tape{..} = Tape (cursor + 1) right left
--- moveCursor N t = t
-
-insertAt :: Integer -> a -> Tape a -> Tape a
-insertAt i val Tape{..}
-    | i < 0 = Tape cursor right left'
-    | otherwise = Tape cursor right' left
-    where i' = (abs i) - 1
-          (as, _:bs) = genericSplitAt i right
-          (as', _:bs') = genericSplitAt i' left
-          right' = as ++ val:bs
-          left' = as' ++ val:bs'
+moveCursor L Tape{..} = Tape (head left:right) (tail left) (cursor - 1)
+moveCursor R Tape{..} = Tape (tail right) (head right:left) (cursor + 1)
 
 insertVal :: a -> Tape a -> Tape a
-insertVal val t@Tape{..} = insertAt cursor val t
+insertVal val Tape{..} = Tape (val:tail right) left cursor
 
 data TuringMachine a = 
     TuringMac {   
@@ -107,7 +89,7 @@ runTuringMachine xs iters tm = returnValue $ runTuringMachine' xs iters tm
 runTM :: (Ord a) => [a] -> Clock -> TuringMachine a -> RunningTM a
 runTM xs iters tm = RunTM tape (startState tm) Running iters tm
     where emptyTape = (blank tm):emptyTape
-          tape = Tape 0 (xs ++ emptyTape) emptyTape
+          tape = Tape (xs ++ emptyTape) emptyTape 0
 
 instance RunningStateMachine RunningTM where
     getReturnValue = returnValue
@@ -117,12 +99,11 @@ instance RunningStateMachine RunningTM where
         | remainingIter < I 1 0 = RunTM tape currentState Timeout remainingIter turingMachine
         | otherwise = runningTM
         where (nextState, toWrite, dir) = stepTuringMachine currentState (getVal tape) turingMachine
-              tape' = insertVal toWrite tape
-              tape'' = moveCursor dir tape'
-              runningTM = RunTM tape'' nextState Running (tickClock remainingIter) turingMachine
+              tape' = moveCursor dir $ insertVal toWrite tape
+              runningTM = RunTM tape' nextState Running (tickClock remainingIter) turingMachine
 
 integerTape :: Tape Integer
-integerTape = Tape 0 [0,0..] [0,0..] 
+integerTape = Tape [0,0..] [0,0..] 0
 
 q0, q1, q2, q3, q4, q5 :: State
 q0:q1:q2:q3:q4:q5:_ = allIntStates
@@ -131,6 +112,8 @@ qH :: State
 qH = IdI (-1)
 
 type BusyBeaverStore = (Integer, Integer, TuringMachine Integer)
+
+-- https://en.wikipedia.org/wiki/Busy_beaver#Examples
 
 -- 6 1s, 14 steps
 busyBeaver3State :: BusyBeaverStore
@@ -157,6 +140,8 @@ busyBeaver5State = (4098, 47176870, inferTuringMachine 0 q0 (S.singleton qH) tra
                           (q4,qH,(0,1,R)), (q4,q0,(1,0,L))])
 
 busyBeaverCheck :: BusyBeaverStore -> (Integer, Integer, RunningTM Integer)
-busyBeaverCheck (ones, steps, tm) = (ones - tapeSum, steps - getTime (remainingIter runMachine) , runMachine)
-    where runMachine = runTuringMachine' [] (I 5000 5000) tm
-          tapeSum = (sum (take 5000 $ right (tape runMachine))) + (sum (take 5000 $ left (tape runMachine)))
+busyBeaverCheck (ones, steps, tm) = (ones - tapeSum, steps - timeSpent, runMachine)
+    where runMachine = runTuringMachine' [] (clock (-1)) tm
+          timeSpent = getTime (remainingIter runMachine)
+          tape' = tape runMachine
+          tapeSum = (sum (genericTake (timeSpent - cursor tape') $ right tape')) + (sum (genericTake (timeSpent + cursor tape') $ left tape'))

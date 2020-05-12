@@ -13,6 +13,6 @@ main = do
     print $ convertDFAToNFA exampleDFA
     print $ run [1,0,1,1,1,0] (Infinite 0) (convertDFAToNFA exampleDFA)
     print $ regexStrToNFA testRegexStr
-    print $ busyBeaverCheck busyBeaver4State
+    -- print $ busyBeaverCheck busyBeaver4State
     print $ busyBeaverCheck busyBeaver5State
     print "main_end"

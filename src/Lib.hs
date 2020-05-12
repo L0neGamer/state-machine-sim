@@ -23,6 +23,11 @@ tickClock :: Clock -> Clock
 tickClock (I i j) = I (i-1) j
 tickClock (Infinite i) = Infinite (i+1)
 
+clock :: Integer -> Clock
+clock i
+    | i >= 0 = I i i
+    | otherwise = Infinite 0
+
 getTime :: Clock -> Integer
 getTime (I i j) = j - i
 getTime (Infinite i) = i
