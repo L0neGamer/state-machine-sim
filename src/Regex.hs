@@ -118,5 +118,5 @@ regexStrToNFA str = foldr NFA.addNFATransition emptyMachine (map (\(a,b,c) -> (a
 testRegexStr :: String
 testRegexStr = "ab(aab)*bb"
 
-checkString :: String -> String -> ReturnState
+checkString :: String -> String -> ReturnValue
 checkString inpStr regex = run inpStr (Infinite 0) (regexStrToNFA regex)

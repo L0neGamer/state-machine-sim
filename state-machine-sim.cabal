@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d07030445883061196c78abb78954b31a7003543ebdcec356ca9377842f70244
+-- hash: a3acffb2c45eecce3ecfc0aadccf1245f2c5ed08948e1aa20c2a1e862453e15f
 
 name:           state-machine-sim
 version:        0.1.0.0
@@ -32,6 +32,7 @@ library
       Lib
       NFA
       Regex
+      TuringMachine
   other-modules:
       Paths_state_machine_sim
   hs-source-dirs:

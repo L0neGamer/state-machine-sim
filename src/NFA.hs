@@ -26,7 +26,7 @@ data RunningNFA a =
     RunNFA {
         word :: [a],
         currentStates :: States,
-        returnState :: ReturnState,
+        returnValue :: ReturnValue,
         remainingIter :: Clock,
         nfa :: NFAStateMachine a
     } deriving (Show)
@@ -55,7 +55,7 @@ instance StateMachine NFAStateMachine where
     stepMachine state transition nfa = expandEpsilon nfa (S.unions $ S.map getStates (expandEpsilon nfa (S.singleton state)))
         where getStates s = (M.findWithDefault (S.singleton Dead) (Val transition) (M.findWithDefault M.empty s (transitions nfa)))
 
-    run xs iters nfa = returnState $ runSM $ runNFA xs iters nfa
+    run xs iters nfa = returnValue $ runSM $ runNFA xs iters nfa
 
     smAcceptStates = acceptStates
 
@@ -72,7 +72,7 @@ instance RunningStateMachine RunningNFA where
         where next = S.unions $ S.map (\cs -> stepMachine cs x nfa) currentStates
               runningNFA = RunNFA xs next Running (tickClock remainingIter) nfa
     
-    getReturnState = returnState
+    getReturnValue = returnValue
 
 runNFA :: (Ord a) => [a] -> Clock -> NFAStateMachine a -> RunningNFA a
 runNFA xs iters nfa = RunNFA xs startStates Running iters nfa

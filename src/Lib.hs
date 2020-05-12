@@ -9,7 +9,7 @@ import qualified Data.Set as S
 
 data State = IdI Integer | IdS String | Dead deriving (Eq, Ord, Show)
 
-data ReturnState = Running | Timeout | Term Bool deriving (Eq, Show)
+data ReturnValue = Running | Timeout | Term Bool deriving (Eq, Show)
 
 data Clock = I Integer | Infinite Integer deriving (Show, Ord, Eq)
 
@@ -59,7 +59,7 @@ class StateMachine sm where
     stepMachine :: (Ord a) => State -> a -> sm a -> States
     stepMachine Dead _ _ = S.singleton Dead
 
-    run :: (Ord a) => [a] -> Clock -> sm a -> ReturnState
+    run :: (Ord a) => [a] -> Clock -> sm a -> ReturnValue
 
     smAcceptStates :: (Ord a) => sm a -> AcceptStates
 
@@ -76,11 +76,11 @@ class StateMachine sm where
     isAcceptable sm s = or $ S.map (`S.member` (smAcceptStates sm)) (reachableStates sm s)
 
 class RunningStateMachine rsm where
-    getReturnState :: (Ord a) => rsm a -> ReturnState
+    getReturnValue :: (Ord a) => rsm a -> ReturnValue
     step :: (Ord a) => rsm a -> rsm a
     runSM :: (Ord a) => rsm a -> rsm a
     runSM running
-        | getReturnState running' == Running = runSM running'
+        | getReturnValue running' == Running = runSM running'
         | otherwise = running'
         where running' = step running
 

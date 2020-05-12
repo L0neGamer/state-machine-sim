@@ -24,7 +24,7 @@ data RunningDFA a =
     RunDFA {
         word :: [a],
         currentState :: State,
-        returnState :: ReturnState,
+        returnValue :: ReturnValue,
         remainingIter :: Clock,
         dfa :: DFAStateMachine a
     } deriving (Show)
@@ -44,7 +44,7 @@ instance StateMachine DFAStateMachine where
               
     stepMachine state transition DFAStatMac {..} = S.singleton (M.findWithDefault Dead transition (M.findWithDefault M.empty state transitions))
 
-    run xs iters dfa = returnState $ runSM $ runDFA xs iters dfa
+    run xs iters dfa = returnValue $ runSM $ runDFA xs iters dfa
 
     smAcceptStates = acceptStates
 
@@ -58,11 +58,11 @@ instance RunningStateMachine RunningDFA where
         | remainingIter < I 1 = RunDFA (x:xs) currentState Timeout remainingIter dfa
         | otherwise = runningDFA
         where nextState = fromSingleton $ stepMachine currentState x dfa
-              returnState' | nextState == Dead = Term False
+              returnValue' | nextState == Dead = Term False
                            | otherwise = Running
-              runningDFA = RunDFA xs nextState returnState' (tickClock remainingIter) dfa
+              runningDFA = RunDFA xs nextState returnValue' (tickClock remainingIter) dfa
 
-    getReturnState = returnState
+    getReturnValue = returnValue
 
 runDFA :: (Ord a) => [a] -> Clock -> DFAStateMachine a -> RunningDFA a
 runDFA xs iters dfa = RunDFA xs (startState dfa) Running iters dfa
