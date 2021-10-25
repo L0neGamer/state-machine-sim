@@ -1,14 +1,11 @@
-name:                state-machine-sim
-version:             0.1.0.0
-github:              "githubuser/state-machine-sim"
-license:             BSD3
-author:              "Author name here"
-maintainer:          "example@example.com"
-copyright:           "2020 Author name here"
+name: state-machine-sim
+version: 0.1.0.0
+github: "L0neGamer/state-machine-sim"
+license: BSD3
 
 extra-source-files:
-- README.md
-- ChangeLog.md
+  - README.md
+  - ChangeLog.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -17,34 +14,45 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/state-machine-sim#readme>
+description: Please see the README on GitHub at <https://github.com/L0neGamer/state-machine-sim#readme>
 
 dependencies:
-- base >= 4.7 && < 5
-- containers
-- diagrams
+  - base >= 4.7 && < 5
+  - containers
+  - vector
+# - diagrams
 
 library:
   source-dirs: src
+  default-extensions:
+    - OverloadedStrings
+    - RecordWildCards
+    - InstanceSigs
+    - RecordWildCards
+    - MultiParamTypeClasses
+    - TupleSections
+    - ViewPatterns
+  ghc-options:
+    - -Wall
 
 executables:
   state-machine-sim-exe:
-    main:                Main.hs
-    source-dirs:         app
+    main: Main.hs
+    source-dirs: app
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - state-machine-sim
+      - state-machine-sim
 
 tests:
   state-machine-sim-test:
-    main:                Spec.hs
-    source-dirs:         test
+    main: Spec.hs
+    source-dirs: test
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - state-machine-sim
+      - state-machine-sim
