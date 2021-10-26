@@ -32,6 +32,8 @@ library:
     - MultiParamTypeClasses
     - TupleSections
     - ViewPatterns
+    - FlexibleContexts 
+    - StandaloneDeriving 
   ghc-options:
     - -Wall
 
