@@ -1,115 +1,217 @@
 module Lib where
 
-import qualified Data.Map as M
-import qualified Data.Set as S
+-- import qualified Data.Map as M
+-- import qualified Data.Set as S
+
+import Data.Map (Map)
+import Data.Set
+import Data.Vector (Vector)
+
+-- https://softwareengineering.stackexchange.com/questions/242795/what-is-the-free-monad-interpreter-pattern
+
+data DSL next
+  = Get String (String -> next)
+  | Set String String next
+  | End
+
+instance Functor DSL where
+  fmap f (Get name k) = Get name (f . k)
+  fmap f (Set name value next) = Set name value (f next)
+  fmap _ End = End
+
+data Free f a = Free (f (Free f a)) | Return a 
+
+-- instance (Show a, Show (f (Free f a))) => Show (Free f a) where
+--   show (Return a) = "Return "++show a
+--   show (Free a) = "Free "++show a
+-- deriving instance (Show a) => Show (Free f a)
+
+instance Functor f => Functor (Free f) where
+  fmap f (Return a) = Return (f a)
+  fmap f (Free a) = Free $ fmap (fmap f) a
+
+instance (Functor f) => Applicative (Free f) where
+  pure = Return
+  (Return f) <*> a = fmap f a
+  (Free f) <*> a = Free $ fmap (<*> a) f
+
+instance Functor f => Monad (Free f) where
+  return = Return
+  Free a >>= f = Free (fmap (>>= f) a)
+  Return a >>= f = f a
+
+-- data ExStateMachine a b = ExStateMachine {
+--   states :: InternalStates,
+--   language :: Language a,
+--   transitions :: Vector (Map a (InternalStates, b)),
+--   startState :: InternalState,
+--   accepStates :: AcceptStates
+-- }
 
 -- import Debug.Trace (trace)
 
-data State = IdI Integer | IdS String | Dead deriving (Eq, Ord, Show)
+-- data State = IdI Integer | IdS String | Dead deriving (Eq, Ord, Show)
 
-data ReturnValue = Running | Timeout | Term Bool deriving (Eq, Show)
+-- type State a = Maybe a
 
-data Clock = I Integer Integer | Infinite Integer deriving (Show, Ord, Eq)
+-- type InternalState = State Int
 
-type States = S.Set State
+-- data ReturnValue = Running | Timeout | Term Bool deriving (Eq, Show)
 
-type AcceptStates = States
+-- data Clock = I {time :: Integer, limit :: Integer} | Infinite {count :: Integer} deriving (Show, Ord, Eq)
 
-type Language a = S.Set a
+-- type States a = Set (State a)
 
-type Transition a = (State, State, a)
+-- type InternalStates = Set InternalState
 
-type Transitions a = [Transition a]
+-- type AcceptStates = InternalStates
 
-tickClock :: Clock -> Clock
-tickClock (I i j) = I (i -1) j
-tickClock (Infinite i) = Infinite (i + 1)
+-- type Language a = Set a
 
-clock :: Integer -> Clock
-clock i
-  | i >= 0 = I i i
-  | otherwise = Infinite 0
+-- data Transition a b c = Transition {startStateT :: State a, resultT :: b, characterT :: c}
 
-getTime :: Clock -> Integer
-getTime (I i j) = j - i
-getTime (Infinite i) = i
+-- -- type Transition a b c = (State a, b, c)
 
-allIntStates :: [State]
-allIntStates = map IdI [0, 1 ..]
+-- type Transitions a b c = [Transition a b c]
 
-getStatesAndLang :: Ord a => Transitions a -> (States, Language a)
-getStatesAndLang = foldr combine (S.empty, S.empty)
-  where
-    combine (a, a', b) (as, bs) = (S.insert a (S.insert a' as), S.insert b bs)
+-- toState :: a -> State a
+-- toState = Just
 
-constructStateMachine'' :: (Ord a, Ord b) => (Language a -> Language b) -> (Transitions a -> transitionsMap) -> (States -> Language b -> transitionsMap -> State -> AcceptStates -> sm a) -> States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
-constructStateMachine'' langConv transitionsConv stateMachineCons states language transitions startState acceptStates
-  | startState `S.notMember` states = error "start state not in set of states"
-  | not (acceptStates `S.isSubsetOf` states) = error "accept states not subset of states"
-  | not (transitionStates `S.isSubsetOf` states) = error "transition states not subset of states"
-  | not (langConv transitionLanguage `S.isSubsetOf` language') = error "transition language not subset of language"
-  | otherwise = stateMachineCons states language' (transitionsConv transitions) startState acceptStates
-  where
-    (transitionStates, transitionLanguage) = getStatesAndLang transitions
-    language' = langConv language
+-- tickClock :: Clock -> Clock
+-- tickClock (I i j) = I (i -1) j
+-- tickClock (Infinite i) = Infinite (i + 1)
 
-constructStateMachine' :: (Ord a) => (Transitions a -> transitionsMap) -> (States -> Language a -> transitionsMap -> State -> AcceptStates -> sm a) -> States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
-constructStateMachine' = constructStateMachine'' id
+-- clock :: Integer -> Clock
+-- clock i
+--   | i >= 0 = I i i
+--   | otherwise = Infinite 0
 
--- TODO: https://archives.haskell.org/projects.haskell.org/diagrams/tutorials.html
--- or https://discordapp.com/channels/195989586260918272/222003210670440451/709816458921640057
+-- getTime :: Clock -> Integer
+-- getTime (I i j) = j - i
+-- getTime (Infinite i) = i
 
-class StateMachine sm where
-  constructStateMachine :: (Ord a) => States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
+-- allIntStates :: [InternalState]
+-- allIntStates = fmap Just [0, 1 ..]
 
-  inferStateMachine :: (Ord a) => Transitions a -> State -> AcceptStates -> sm a
-  inferStateMachine transitions = constructStateMachine states language transitions
-    where
-      (states, language) = getStatesAndLang transitions
+-- type DFATransition a = M.Map a State
 
-  addTransition :: (Ord a) => Transition a -> sm a -> sm a
-  removeTransition :: (Ord a) => Transition a -> sm a -> sm a
+-- type DFATransitions a = M.Map State (DFATransition a)
+-- data NFATransitionType a = Epsilon | Val a deriving (Show, Eq, Ord)
 
-  addTransitions :: (Ord a) => Transitions a -> sm a -> sm a
-  addTransitions ts sm = foldr addTransition sm ts
+-- type NFATransition a = M.Map (NFATransitionType a) States
 
-  stepMachine :: (Ord a) => State -> a -> sm a -> States
-  stepMachine Dead _ _ = S.singleton Dead
-  stepMachine _ _ _ = error "no step found from state - incorrect statemachine setup"
+-- type NFATransitions a = M.Map State (NFATransition a)
 
-  run :: (Ord a) => [a] -> Clock -> sm a -> ReturnValue
+-- data DFAStateMachine a = DFAStatMac
+--   { states :: States,
+--     language :: Language a,
+--     transitions :: DFATransitions a,
+--     startState :: State,
+--     acceptStates :: AcceptStates
+--   }
+--   deriving (Show, Eq)
 
-  smAcceptStates :: (Ord a) => sm a -> AcceptStates
+-- data NFAStateMachine a = NFAStatMac
+--   { states :: States,
+--     language :: Language (NFATransitionType a),
+--     transitions :: NFATransitions a,
+--     startState :: State,
+--     acceptStates :: AcceptStates
+--   }
+--   deriving (Show)
 
-  nextStates :: (Ord a) => sm a -> State -> States
-  reachableStates' :: (Ord a) => sm a -> States -> States -> States
-  reachableStates' sm toCheck visited
-    | next == S.singleton Dead || null next = S.delete Dead $ S.union toCheck visited
-    | otherwise = reachableStates' sm next (S.union next visited)
-    where
-      next = S.difference (S.unions $ S.map (nextStates sm) toCheck) visited
 
-  reachableStates :: (Ord a) => sm a -> State -> States
+-- getStatesAndLang :: (Ord a, Ord c, HasState b a)=> Transitions a b c -> (States a, Language c)
+-- getStatesAndLang = Prelude.foldr combine (empty, empty)
+--   where
+--     combine (Transition a b c) (as, cs) = (insert a (getNextStates b `union` as), insert c cs)
 
-  isAcceptable :: (Ord a) => sm a -> State -> Bool
-  isAcceptable sm s = or $ S.map (`S.member` smAcceptStates sm) (reachableStates sm s)
+-- class HasState a b where
+--     getNextStates :: a -> States b
 
-class RunningStateMachine rsm where
-  getReturnValue :: (Ord a) => rsm a -> ReturnValue
-  step :: (Ord a) => rsm a -> rsm a
-  runSM :: (Ord a) => rsm a -> rsm a
-  runSM running
-    | getReturnValue running' == Running = runSM running'
-    | otherwise = running'
-    where
-      running' = step running
+-- a is the language, b is the output from one step
+-- class (HasState b Int) => StateMachine sm a b where
+--     states :: sm a b -> InternalStates
+--     language :: sm a b -> Language a
+--     acceptStates :: sm a b -> AcceptStates
+--     startState :: sm a b -> InternalState
+--     transitionTable :: sm a b -> Vector (Map a b)
+--     stepMachine :: InternalState -> a -> sm a b -> b
+--     constructStateMachine :: InternalStates -> Language a -> Transitions Int b a -> InternalState -> AcceptStates -> sm a b
+--     inferStateMachine :: (Ord a) => Transitions Int b a -> InternalState -> AcceptStates -> sm a b
+--     inferStateMachine transitions = constructStateMachine stats lang transitions
+--       where
+--         (stats, lang) = getStatesAndLang transitions
+-- run :: (Ord a) => [a] -> Clock -> sm a b -> ReturnValue
 
-fromTuplesToMap :: (Ord a, Ord c) => (b -> b -> b) -> [(a, b, c)] -> M.Map a (M.Map c b)
-fromTuplesToMap _ [] = M.empty
-fromTuplesToMap f ((a, b, c) : xs) = M.unionWith (M.unionWith f) (M.singleton a (M.singleton c b)) mp
-  where
-    mp = fromTuplesToMap f xs
+-- constructStateMachine'' :: (Ord a, Ord b) => (Language a -> Language b) -> (Transitions a -> transitionsMap) -> (States -> Language b -> transitionsMap -> State -> AcceptStates -> sm a) -> States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
+-- constructStateMachine'' langConv transitionsConv stateMachineCons states language transitions startState acceptStates
+--   | startState `S.notMember` states = error "start state not in set of states"
+--   | not (acceptStates `S.isSubsetOf` states) = error "accept states not subset of states"
+--   | not (transitionStates `S.isSubsetOf` states) = error "transition states not subset of states"
+--   | not (langConv transitionLanguage `S.isSubsetOf` language') = error "transition language not subset of language"
+--   | otherwise = stateMachineCons states language' (transitionsConv transitions) startState acceptStates
+--   where
+--     (transitionStates, transitionLanguage) = getStatesAndLang transitions
+--     language' = langConv language
 
-fromSingleton :: S.Set a -> a
-fromSingleton (S.toList -> [x]) = x
-fromSingleton _ = error "tried to get single item from non-singleton set"
+-- constructStateMachine' :: (Ord a) => (Transitions a -> transitionsMap) -> (States -> Language a -> transitionsMap -> State -> AcceptStates -> sm a) -> States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
+-- constructStateMachine' = constructStateMachine'' id
+
+-- -- TODO: https://archives.haskell.org/projects.haskell.org/diagrams/tutorials.html
+-- -- or https://discordapp.com/channels/195989586260918272/222003210670440451/709816458921640057
+
+-- class StateMachine sm where
+--   constructStateMachine :: (Ord a) => States -> Language a -> Transitions a -> State -> AcceptStates -> sm a
+
+--   inferStateMachine :: (Ord a) => Transitions a -> State -> AcceptStates -> sm a
+--   inferStateMachine transitions = constructStateMachine states language transitions
+--     where
+--       (states, language) = getStatesAndLang transitions
+
+--   addTransition :: (Ord a) => Transition a -> sm a -> sm a
+--   removeTransition :: (Ord a) => Transition a -> sm a -> sm a
+
+--   addTransitions :: (Ord a) => Transitions a -> sm a -> sm a
+--   addTransitions ts sm = foldr addTransition sm ts
+
+--   stepMachine :: (Ord a) => State -> a -> sm a -> States
+--   stepMachine Dead _ _ = S.singleton Dead
+--   stepMachine _ _ _ = error "no step found from state - incorrect statemachine setup"
+
+--   run :: (Ord a) => [a] -> Clock -> sm a -> ReturnValue
+
+--   smAcceptStates :: (Ord a) => sm a -> AcceptStates
+
+--   nextStates :: (Ord a) => sm a -> State -> States
+--   reachableStates' :: (Ord a) => sm a -> States -> States -> States
+--   reachableStates' sm toCheck visited
+--     | next == S.singleton Dead || null next = S.delete Dead $ S.union toCheck visited
+--     | otherwise = reachableStates' sm next (S.union next visited)
+--     where
+--       next = S.difference (S.unions $ S.map (nextStates sm) toCheck) visited
+
+--   reachableStates :: (Ord a) => sm a -> State -> States
+
+--   isAcceptable :: (Ord a) => sm a -> State -> Bool
+--   isAcceptable sm s = or $ S.map (`S.member` smAcceptStates sm) (reachableStates sm s)
+
+-- class RunningStateMachine rsm where
+--   getReturnValue :: (Ord a) => rsm a -> ReturnValue
+--   step :: (Ord a) => rsm a -> rsm a
+--   runSM :: (Ord a) => rsm a -> rsm a
+--   runSM running
+--     | getReturnValue running' == Running = runSM running'
+--     | otherwise = running'
+--     where
+--       running' = step running
+
+-- fromTuplesToMap :: (Ord a, Ord c) => (b -> b -> b) -> [(a, b, c)] -> M.Map a (M.Map c b)
+-- fromTuplesToMap _ [] = M.empty
+-- fromTuplesToMap f ((a, b, c) : xs) = M.unionWith (M.unionWith f) (M.singleton a (M.singleton c b)) mp
+--   where
+--     mp = fromTuplesToMap f xs
+
+-- fromSingleton :: S.Set a -> a
+-- fromSingleton (S.toList -> [x]) = x
+-- fromSingleton _ = error "tried to get single item from non-singleton set"
