@@ -140,11 +140,9 @@ addTransition Transition {..} sm@StateMachine {..} = do
     return (ss, es, characterT, outputT)
   _ <- if l `S.notMember` language then Left "Character not in language" else Right ()
   m <- maybeToError "Could not find start state (addTransition)" $ transitions !? ss
-  -- (es', e') <- lookupError ("Could not locate output  (addTransition) " ++ show ss ++ " " ++ show (M.keys m)) l m
   let combined
         | l `M.member` m = bimap (combineStates es) (addOutput e) (m M.! l)
         | otherwise = (fromStateID es, e)
-  -- let combined = (combineStates es es', addOutput e e')
   v <- maybeToError "Could not update vector (addTransition)" $ updateVector ss (M.insert l combined m) transitions
   Right $ updateTransitions v sm
 

@@ -146,41 +146,12 @@ baseToNFA :: Base -> Integer -> (Integer, Integer, [NFATransition Char])
 baseToNFA (BaseChar c) i = (i, i + 1, [tupleToSimpleTransition (stateFromInteger i, stateFromInteger (i + 1), Just c)])
 baseToNFA (BaseGroup regex) s = regexToNFA regex s
 
--- regexToNFA :: Regex -> Integer -> (State, State, [(State, State, NFA.NFATransitionType Char)])
--- regexToNFA (RegexSingle term) i = termToNFA term i
--- regexToNFA (RegexAlternation term regex) i = (q0, q3, transitions)
---   where
---     q0 = IdI i
---     (q1, IdI i', xs) = termToNFA term (i + 1)
---     (q2, IdI i'', xs') = regexToNFA regex (i' + 1)
---     q3 = IdI (i'' + 1)
---     transitions = xs ++ xs' ++ [(q0, q1, NFA.Epsilon), (q0, q2, NFA.Epsilon), (IdI i', q3, NFA.Epsilon), (IdI i'', q3, NFA.Epsilon)]
-
--- termToNFA TermNil i = (IdI i, IdI i, [])
--- termToNFA (TermFact fact term) i = (q0, q2, transitions)
---   where
---     (q0, IdI i', xs) = factToNFA fact i
---     (_, q2, xs') = termToNFA term i'
---     transitions = xs ++ xs'
-
--- factToNFA :: Factor -> Integer -> (State, State, [(State, State, NFA.NFATransitionType Char)])
--- factToNFA (FactorStar fact) i = (q0, q1, transitions)
---   where
---     (q0, q1, xs) = factToNFA fact i
---     transitions = xs ++ [(q0, q1, NFA.Epsilon), (q1, q0, NFA.Epsilon)]
--- factToNFA (FactorSingle base) i = baseToNFA base i
-
 regexStrToNFA :: String -> Error (NFA Char)
 regexStrToNFA str = inferStateMachine ("regex NFA `" ++ str ++ "`") xs (stateFromInteger start) (S.singleton $ stateFromInteger end) const
   where
     (start, end, xs) = regexToNFA (strToParsedRegex str) 0
 
--- emptyMachine = NFA.NFAStatMac states lang M.empty start (S.singleton end)
-
--- testRegexStr :: String
--- testRegexStr = "ab(aab)*bb"
-
 checkString :: String -> String -> Error ReturnValue
 checkString inpStr regex = do
   nfa <- regexStrToNFA regex
-  extractResult $ runNFA (map Just inpStr) (clock 0) nfa
+  extractResult $ runNFA inpStr (clock 0) nfa
