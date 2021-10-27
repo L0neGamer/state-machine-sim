@@ -2,24 +2,43 @@ module Regex where
 
 -- thanks to this page for help in this file: http://matt.might.net/articles/parsing-regex-with-recursive-descent/
 
-import qualified Data.Map as M
-import qualified Data.Set as S
-import Lib
-import qualified NFA
+import Data.Set as S (singleton)
+import Lib (Error)
+import NFA (NFA, NFATransition, runNFA)
+import RunStateMachine (ReturnValue, clock, extractResult)
+import StateMachine (State (State), inferStateMachine, tupleToSimpleTransition)
 
 type Err = String
 
-data RegexToken = LParen | RParen | Chr Char | KleeneStar | Alternation deriving (Show, Eq)
+data RegexToken
+  = LParen
+  | RParen
+  | Chr Char
+  | KleeneStar
+  | Alternation
+  deriving (Show, Eq)
 
 type TokenStream = [RegexToken]
 
-data Base = BaseChar Char | BaseGroup Regex deriving (Show, Eq)
+data Base
+  = BaseChar Char
+  | BaseGroup Regex
+  deriving (Show, Eq)
 
-data Factor = FactorSingle Base | FactorStar Factor deriving (Show, Eq)
+data Factor
+  = FactorSingle Base
+  | FactorStar Factor
+  deriving (Show, Eq)
 
-data Term = TermNil | TermFact Factor Term deriving (Show, Eq)
+data Term
+  = TermNil
+  | TermFact Factor Term
+  deriving (Show, Eq)
 
-data Regex = RegexSingle Term | RegexAlternation Term Regex deriving (Show, Eq)
+data Regex
+  = RegexSingle Term
+  | RegexAlternation Term Regex
+  deriving (Show, Eq)
 
 isChr :: RegexToken -> Bool
 isChr (Chr _) = True
@@ -47,12 +66,12 @@ parseRegex toks
 
 parseTerm :: TokenStream -> (TokenStream, Term)
 parseTerm [] = ([], TermNil)
-parseTerm (tok : toks)
+parseTerm toks@(tok : _)
   | tok `isIn` baseChecks = (toks'', TermFact fact fact')
-  | otherwise = (tok : toks, TermNil)
+  | otherwise = (toks, TermNil)
   where
     baseChecks = [isChr, (== LParen)]
-    (toks', fact) = parseFactor (tok : toks)
+    (toks', fact) = parseFactor toks
     (toks'', fact') = parseTerm toks'
 
 parseFactor :: TokenStream -> (TokenStream, Factor)
@@ -88,44 +107,80 @@ strToParsedRegex str
   where
     (toks, regex) = parseRegex . toTokens $ str
 
-regexToNFA :: Regex -> Integer -> (State, State, [(State, State, NFA.NFATransitionType Char)])
+stateFromInteger :: Integer -> State
+stateFromInteger = State . show
+
+tupleIntegerState :: (Integer, Integer, a) -> (State, State, a)
+tupleIntegerState (i, i', a) = (stateFromInteger i, stateFromInteger i', a)
+
+convertList :: [(Integer, Integer, Maybe a)] -> [NFATransition a]
+convertList = (tupleToSimpleTransition . tupleIntegerState <$>)
+
+regexToNFA :: Regex -> Integer -> (Integer, Integer, [NFATransition Char])
 regexToNFA (RegexSingle term) i = termToNFA term i
-regexToNFA (RegexAlternation term regex) i = (q0, q3, transitions)
+regexToNFA (RegexAlternation term regex) i = (q0, q3, ts)
   where
-    q0 = IdI i
-    (q1, IdI i', xs) = termToNFA term (i + 1)
-    (q2, IdI i'', xs') = regexToNFA regex (i' + 1)
-    q3 = IdI (i'' + 1)
-    transitions = xs ++ xs' ++ [(q0, q1, NFA.Epsilon), (q0, q2, NFA.Epsilon), (IdI i', q3, NFA.Epsilon), (IdI i'', q3, NFA.Epsilon)]
+    q0 = i
+    (q1, q2, xs) = termToNFA term (q0 + 1)
+    (q3, q4, xs') = regexToNFA regex (q2 + 1)
+    q5 = q4 + 1
+    ts = xs ++ xs' ++ convertList [(q0, q1, Nothing), (q0, q3, Nothing), (q2, q5, Nothing), (q4, q5, Nothing)]
 
-termToNFA :: Term -> Integer -> (State, State, [(State, State, NFA.NFATransitionType Char)])
-termToNFA TermNil i = (IdI i, IdI i, [])
-termToNFA (TermFact fact term) i = (q0, q2, transitions)
+termToNFA :: Term -> Integer -> (Integer, Integer, [NFATransition Char])
+termToNFA TermNil i = (i, i, [])
+termToNFA (TermFact fact term) i = (q0, q2, ts)
   where
-    (q0, IdI i', xs) = factToNFA fact i
-    (_, q2, xs') = termToNFA term i'
-    transitions = xs ++ xs'
+    q0 = i
+    (_, q1, xs) = factToNFA fact i
+    (_, q2, xs') = termToNFA term q1
+    ts = xs ++ xs'
 
-factToNFA :: Factor -> Integer -> (State, State, [(State, State, NFA.NFATransitionType Char)])
-factToNFA (FactorStar fact) i = (q0, q1, transitions)
+factToNFA :: Factor -> Integer -> (Integer, Integer, [NFATransition Char])
+factToNFA (FactorStar fact) i = (q0, q1, ts)
   where
     (q0, q1, xs) = factToNFA fact i
-    transitions = xs ++ [(q0, q1, NFA.Epsilon), (q1, q0, NFA.Epsilon)]
+    ts = xs ++ convertList [(q0, q1, Nothing), (q1, q0, Nothing)]
 factToNFA (FactorSingle base) i = baseToNFA base i
 
-baseToNFA :: Base -> Integer -> (State, State, [(State, State, NFA.NFATransitionType Char)])
-baseToNFA (BaseChar c) i = (IdI i, IdI (i + 1), [(IdI i, IdI (i + 1), NFA.Val c)])
-baseToNFA (BaseGroup regex) i = regexToNFA regex i
+baseToNFA :: Base -> Integer -> (Integer, Integer, [NFATransition Char])
+baseToNFA (BaseChar c) i = (i, i + 1, [tupleToSimpleTransition (stateFromInteger i, stateFromInteger (i + 1), Just c)])
+baseToNFA (BaseGroup regex) s = regexToNFA regex s
 
-regexStrToNFA :: String -> NFA.NFAStateMachine Char
-regexStrToNFA str = foldr (NFA.addNFATransition . (\(a, b, c) -> (a, S.singleton b, c))) emptyMachine xs
+-- regexToNFA :: Regex -> Integer -> (State, State, [(State, State, NFA.NFATransitionType Char)])
+-- regexToNFA (RegexSingle term) i = termToNFA term i
+-- regexToNFA (RegexAlternation term regex) i = (q0, q3, transitions)
+--   where
+--     q0 = IdI i
+--     (q1, IdI i', xs) = termToNFA term (i + 1)
+--     (q2, IdI i'', xs') = regexToNFA regex (i' + 1)
+--     q3 = IdI (i'' + 1)
+--     transitions = xs ++ xs' ++ [(q0, q1, NFA.Epsilon), (q0, q2, NFA.Epsilon), (IdI i', q3, NFA.Epsilon), (IdI i'', q3, NFA.Epsilon)]
+
+-- termToNFA TermNil i = (IdI i, IdI i, [])
+-- termToNFA (TermFact fact term) i = (q0, q2, transitions)
+--   where
+--     (q0, IdI i', xs) = factToNFA fact i
+--     (_, q2, xs') = termToNFA term i'
+--     transitions = xs ++ xs'
+
+-- factToNFA :: Factor -> Integer -> (State, State, [(State, State, NFA.NFATransitionType Char)])
+-- factToNFA (FactorStar fact) i = (q0, q1, transitions)
+--   where
+--     (q0, q1, xs) = factToNFA fact i
+--     transitions = xs ++ [(q0, q1, NFA.Epsilon), (q1, q0, NFA.Epsilon)]
+-- factToNFA (FactorSingle base) i = baseToNFA base i
+
+regexStrToNFA :: String -> Error (NFA Char)
+regexStrToNFA str = inferStateMachine ("regex NFA `" ++ str ++ "`") xs (stateFromInteger start) (S.singleton $ stateFromInteger end) const
   where
     (start, end, xs) = regexToNFA (strToParsedRegex str) 0
-    (states, lang) = getStatesAndLang xs
-    emptyMachine = NFA.NFAStatMac states lang M.empty start (S.singleton end)
 
-testRegexStr :: String
-testRegexStr = "ab(aab)*bb"
+-- emptyMachine = NFA.NFAStatMac states lang M.empty start (S.singleton end)
 
-checkString :: String -> String -> ReturnValue
-checkString inpStr regex = run inpStr (Infinite 0) (regexStrToNFA regex)
+-- testRegexStr :: String
+-- testRegexStr = "ab(aab)*bb"
+
+checkString :: String -> String -> Error ReturnValue
+checkString inpStr regex = do
+  nfa <- regexStrToNFA regex
+  extractResult $ runNFA (map Just inpStr) (clock 0) nfa

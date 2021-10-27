@@ -1,6 +1,6 @@
 module DFA where
 
-import qualified Data.Set as S
+import Data.Set as S
 import Lib (Error, Single (..))
 import RunStateMachine
 import StateMachine
@@ -17,7 +17,7 @@ runDFA tape' clk dfa = do
   Right $ runSM rdfa
 
 exampleDFA :: Error (DFA Int)
-exampleDFA = inferStateMachine "DFA accepts 101*0" (map tupleToSimpleTransition [(q0, q1, 1), (q1, q2, 0), (q2, q2, 1), (q2, q3, 0)]) q0 (S.singleton q3) const
+exampleDFA = inferStateMachine "DFA accepts 101*0" (fmap tupleToSimpleTransition [(q0, q1, 1), (q1, q2, 0), (q2, q2, 1), (q2, q3, 0)]) q0 (S.singleton q3) const
 
 emptyDFA :: (Ord a) => Error (DFA a)
 emptyDFA = constructStateMachine "empty DFA" S.empty (S.singleton q0) [] q0 S.empty const
@@ -29,7 +29,7 @@ getRunDFA tape' clk dfa = constructRunningSM tape' clk dfa (\_ x -> tail x) step
       (s', _) <- runStep stateMachine s l
       return (s', ())
     haltingFunc (Single s) _ as StateMachine {..}
-      | null as && s >= 0 = Term $ s `S.member` acceptStateIDs
+      | Prelude.null as && s >= 0 = Term $ s `S.member` acceptStateIDs
       | s >= 0 = Running
       | otherwise = Term False
 

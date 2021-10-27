@@ -95,3 +95,8 @@ runSM rsm@RunSM {..} = do
   where
     leftWrap (Left s) = Left (s, rsm)
     leftWrap (Right r) = Right r
+
+extractResult :: Error (Either (String, RunningSM f l s e) (RunningSM f l s e)) -> Error ReturnValue
+extractResult (Left s) = Left s
+extractResult (Right (Left (s, _))) = Left s
+extractResult (Right (Right rsm)) = Right $ returnValue rsm

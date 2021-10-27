@@ -5,12 +5,13 @@ import Data.Map as M (Map, empty, fromList, insert, lookup, member, (!))
 import Data.Set as S (Set, delete, empty, fromList, insert, notMember, singleton, size, toAscList, toList)
 import Data.Vector as V (Vector, replicate, (!?))
 import Lib
-    ( maybeToError,
-      Error,
-      lookupEither,
-      lookupError,
-      updateVector,
-      Single(..) )
+  ( Error,
+    Single (..),
+    lookupEither,
+    lookupError,
+    maybeToError,
+    updateVector,
+  )
 
 type StateID = Int
 

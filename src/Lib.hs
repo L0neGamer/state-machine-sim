@@ -1,6 +1,7 @@
 module Lib where
 
 import Data.Map as M (Map, lookup, member, (!))
+import Data.Set as S (Set, fromList, toList)
 import Data.Vector as V (Vector, (//))
 
 type Error a = Either String a
@@ -24,6 +25,16 @@ updateVector :: Int -> a -> Vector a -> Maybe (Vector a)
 updateVector i a v
   | i < 0 || i >= length v = Nothing
   | otherwise = Just $ v // [(i, a)]
+
+mapMSet :: (Monad m, Ord b) => (a -> m b) -> Set a -> m (Set b)
+mapMSet f s = do
+  l <- mapM f $ S.toList s
+  return $ S.fromList l
+
+dropNothings :: [Maybe a] -> [a]
+dropNothings [] = []
+dropNothings (Just a : xs) = a : dropNothings xs
+dropNothings (Nothing : xs) = dropNothings xs
 
 if' :: Bool -> a -> a -> a
 if' True a _ = a
