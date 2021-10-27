@@ -3,131 +3,110 @@ module Lib where
 -- import qualified Data.Map as M
 -- import qualified Data.Set as S
 
-import Data.Map (Map)
-import Data.Set
-import Data.Vector (Vector)
+-- import qualified Data.Map as M
+-- import qualified Data.Set as S
+import Data.Map (Map, lookup)
+import Data.Set (Set, empty, insert)
+import Data.Type.Bool (If)
+import Data.Type.Equality (type (==))
+import Data.Vector (Vector, (!?))
 
 -- https://softwareengineering.stackexchange.com/questions/242795/what-is-the-free-monad-interpreter-pattern
 
-data DSL next
-  = Get String (String -> next)
-  | Set String String next
-  | End
+data TapeDir
+  = L
+  | R
+  deriving (Show, Eq)
 
-instance Functor DSL where
-  fmap f (Get name k) = Get name (f . k)
-  fmap f (Set name value next) = Set name value (f next)
-  fmap _ End = End
+data StateMachine l s e = StateMachine
+  { name :: String,
+    language :: Set l,
+    transitions :: Vector (Map l (s, e)),
+    startStateID :: StateID,
+    acceptStateIDs :: Set StateID,
+    getNext :: s -> If (s == StateID) StateID (Set StateID),
+    namesToNumbers :: Map State StateID
+  }
 
-data Free f a = Free (f (Free f a)) | Return a 
+instance (Show l, Show s, Show e) => Show (StateMachine l s e) where
+  show sm =
+    "StateMachine "
+      ++ contained name
+      ++ contained language
+      ++ contained transitions
+      ++ contained startStateID
+      ++ contained acceptStateIDs
+      --  ++ "(" ++ show (typeRep (Proxy :: Proxy s)) ++ ")"
+      ++ contained namesToNumbers
+    where
+      contained f = "(" ++ show (f sm) ++ ") "
 
--- instance (Show a, Show (f (Free f a))) => Show (Free f a) where
---   show (Return a) = "Return "++show a
---   show (Free a) = "Free "++show a
--- deriving instance (Show a) => Show (Free f a)
+type StateID = Int
 
-instance Functor f => Functor (Free f) where
-  fmap f (Return a) = Return (f a)
-  fmap f (Free a) = Free $ fmap (fmap f) a
+type DFA = StateMachine Char StateID ()
 
-instance (Functor f) => Applicative (Free f) where
-  pure = Return
-  (Return f) <*> a = fmap f a
-  (Free f) <*> a = Free $ fmap (<*> a) f
+type NFA = StateMachine (Maybe Char) (Set StateID) ()
 
-instance Functor f => Monad (Free f) where
-  return = Return
-  Free a >>= f = Free (fmap (>>= f) a)
-  Return a >>= f = f a
+type TuringMachine = StateMachine Char StateID (Char, TapeDir)
 
--- data ExStateMachine a b = ExStateMachine {
---   states :: InternalStates,
---   language :: Language a,
---   transitions :: Vector (Map a (InternalStates, b)),
---   startState :: InternalState,
---   accepStates :: AcceptStates
--- }
+data State
+  = Dead
+  | State String
+  deriving (Show, Eq, Ord)
 
--- import Debug.Trace (trace)
+data Transition a b = Transition
+  { startStateT :: State,
+    endStateT :: State,
+    characterT :: a,
+    outputT :: b
+  }
+  deriving (Show, Eq)
 
--- data State = IdI Integer | IdS String | Dead deriving (Eq, Ord, Show)
+type DFATransition = Transition Char ()
 
--- type State a = Maybe a
+type NFATransition = Transition (Maybe Char) ()
 
--- type InternalState = State Int
+type TuringMachineTransition = Transition Char (Char, TapeDir)
 
--- data ReturnValue = Running | Timeout | Term Bool deriving (Eq, Show)
+data Clock
+  = Countdown {time :: Integer, limit :: Integer}
+  | Infinite {count :: Integer}
+  deriving (Show, Ord, Eq)
 
--- data Clock = I {time :: Integer, limit :: Integer} | Infinite {count :: Integer} deriving (Show, Ord, Eq)
+tickClock :: Clock -> Clock
+tickClock (Countdown i j) = Countdown (i -1) j
+tickClock (Infinite i) = Infinite (i + 1)
 
--- type States a = Set (State a)
+clock :: Integer -> Clock
+clock i
+  | i >= 0 = Countdown i i
+  | otherwise = Infinite 0
 
--- type InternalStates = Set InternalState
+getTime :: Clock -> Integer
+getTime (Countdown i j) = j - i
+getTime (Infinite i) = i
 
--- type AcceptStates = InternalStates
+data ReturnValue = Running | Timeout | Term Bool deriving (Eq, Show)
 
--- type Language a = Set a
+getStatesAndLang :: (Ord a) => [Transition a b] -> (Set State, Set a)
+getStatesAndLang = Prelude.foldr combine (empty, empty)
+  where
+    combine (Transition s s' a _) (ss, as) = (insert s (insert s' ss), insert a as)
 
--- data Transition a b c = Transition {startStateT :: State a, resultT :: b, characterT :: c}
+step :: (Ord l) => StateMachine l s e -> StateID -> l -> Maybe (s, e)
+step sm sid l = (t !? sid) >>= Data.Map.lookup l
+  where
+    t = transitions sm
 
--- -- type Transition a b c = (State a, b, c)
-
--- type Transitions a b c = [Transition a b c]
-
--- toState :: a -> State a
--- toState = Just
-
--- tickClock :: Clock -> Clock
--- tickClock (I i j) = I (i -1) j
--- tickClock (Infinite i) = Infinite (i + 1)
-
--- clock :: Integer -> Clock
--- clock i
---   | i >= 0 = I i i
---   | otherwise = Infinite 0
-
--- getTime :: Clock -> Integer
--- getTime (I i j) = j - i
--- getTime (Infinite i) = i
-
--- allIntStates :: [InternalState]
--- allIntStates = fmap Just [0, 1 ..]
-
--- type DFATransition a = M.Map a State
-
--- type DFATransitions a = M.Map State (DFATransition a)
--- data NFATransitionType a = Epsilon | Val a deriving (Show, Eq, Ord)
-
--- type NFATransition a = M.Map (NFATransitionType a) States
-
--- type NFATransitions a = M.Map State (NFATransition a)
-
--- data DFAStateMachine a = DFAStatMac
---   { states :: States,
---     language :: Language a,
---     transitions :: DFATransitions a,
---     startState :: State,
---     acceptStates :: AcceptStates
---   }
---   deriving (Show, Eq)
-
--- data NFAStateMachine a = NFAStatMac
---   { states :: States,
---     language :: Language (NFATransitionType a),
---     transitions :: NFATransitions a,
---     startState :: State,
---     acceptStates :: AcceptStates
---   }
---   deriving (Show)
-
-
--- getStatesAndLang :: (Ord a, Ord c, HasState b a)=> Transitions a b c -> (States a, Language c)
--- getStatesAndLang = Prelude.foldr combine (empty, empty)
---   where
---     combine (Transition a b c) (as, cs) = (insert a (getNextStates b `union` as), insert c cs)
-
--- class HasState a b where
---     getNextStates :: a -> States b
+mapStates' :: Map State StateID -> [Transition a b] -> [Either State (StateID, StateID, a, b)]
+mapStates' m = fmap mpFunc
+  where
+    lookupEither s Nothing = Left s
+    lookupEither _ (Just r) = Right r
+    mpFunc Transition {..} = do
+      ss <- lookupEither startStateT $ Data.Map.lookup startStateT m
+      es <- lookupEither endStateT $ Data.Map.lookup endStateT m
+      return (ss, es, characterT, outputT)
 
 -- a is the language, b is the output from one step
 -- class (HasState b Int) => StateMachine sm a b where
