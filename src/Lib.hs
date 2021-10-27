@@ -1,112 +1,42 @@
 module Lib where
 
--- import qualified Data.Map as M
--- import qualified Data.Set as S
+import Data.Map as M (Map, lookup, member, (!))
+import Data.Vector as V (Vector, (//))
 
--- import qualified Data.Map as M
--- import qualified Data.Set as S
-import Data.Map (Map, lookup)
-import Data.Set (Set, empty, insert)
-import Data.Type.Bool (If)
-import Data.Type.Equality (type (==))
-import Data.Vector (Vector, (!?))
+type Error a = Either String a
 
--- https://softwareengineering.stackexchange.com/questions/242795/what-is-the-free-monad-interpreter-pattern
+maybeToEither :: a -> Maybe b -> Either a b
+maybeToEither s Nothing = Left s
+maybeToEither _ (Just a) = Right a
 
-data TapeDir
-  = L
-  | R
-  deriving (Show, Eq)
+maybeToError :: String -> Maybe a -> Error a
+maybeToError = maybeToEither
 
-data StateMachine l s e = StateMachine
-  { name :: String,
-    language :: Set l,
-    transitions :: Vector (Map l (s, e)),
-    startStateID :: StateID,
-    acceptStateIDs :: Set StateID,
-    getNext :: s -> If (s == StateID) StateID (Set StateID),
-    namesToNumbers :: Map State StateID
-  }
+lookupEither :: (Ord k) => k -> Map k v -> Either k v
+lookupEither k m
+  | k `M.member` m = Right $ m M.! k
+  | otherwise = Left k
 
-instance (Show l, Show s, Show e) => Show (StateMachine l s e) where
-  show sm =
-    "StateMachine "
-      ++ contained name
-      ++ contained language
-      ++ contained transitions
-      ++ contained startStateID
-      ++ contained acceptStateIDs
-      --  ++ "(" ++ show (typeRep (Proxy :: Proxy s)) ++ ")"
-      ++ contained namesToNumbers
-    where
-      contained f = "(" ++ show (f sm) ++ ") "
+lookupError :: (Ord k) => String -> k -> Map k v -> Error v
+lookupError s k = maybeToError s . M.lookup k
 
-type StateID = Int
+updateVector :: Int -> a -> Vector a -> Maybe (Vector a)
+updateVector i a v
+  | i < 0 || i >= length v = Nothing
+  | otherwise = Just $ v // [(i, a)]
 
-type DFA = StateMachine Char StateID ()
+if' :: Bool -> a -> a -> a
+if' True a _ = a
+if' False _ a = a
 
-type NFA = StateMachine (Maybe Char) (Set StateID) ()
+newtype Single a = Single a deriving (Show, Eq, Ord)
 
-type TuringMachine = StateMachine Char StateID (Char, TapeDir)
+class Peekable a where
+  peek :: a b -> Error b
 
-data State
-  = Dead
-  | State String
-  deriving (Show, Eq, Ord)
-
-data Transition a b = Transition
-  { startStateT :: State,
-    endStateT :: State,
-    characterT :: a,
-    outputT :: b
-  }
-  deriving (Show, Eq)
-
-type DFATransition = Transition Char ()
-
-type NFATransition = Transition (Maybe Char) ()
-
-type TuringMachineTransition = Transition Char (Char, TapeDir)
-
-data Clock
-  = Countdown {time :: Integer, limit :: Integer}
-  | Infinite {count :: Integer}
-  deriving (Show, Ord, Eq)
-
-tickClock :: Clock -> Clock
-tickClock (Countdown i j) = Countdown (i -1) j
-tickClock (Infinite i) = Infinite (i + 1)
-
-clock :: Integer -> Clock
-clock i
-  | i >= 0 = Countdown i i
-  | otherwise = Infinite 0
-
-getTime :: Clock -> Integer
-getTime (Countdown i j) = j - i
-getTime (Infinite i) = i
-
-data ReturnValue = Running | Timeout | Term Bool deriving (Eq, Show)
-
-getStatesAndLang :: (Ord a) => [Transition a b] -> (Set State, Set a)
-getStatesAndLang = Prelude.foldr combine (empty, empty)
-  where
-    combine (Transition s s' a _) (ss, as) = (insert s (insert s' ss), insert a as)
-
-step :: (Ord l) => StateMachine l s e -> StateID -> l -> Maybe (s, e)
-step sm sid l = (t !? sid) >>= Data.Map.lookup l
-  where
-    t = transitions sm
-
-mapStates' :: Map State StateID -> [Transition a b] -> [Either State (StateID, StateID, a, b)]
-mapStates' m = fmap mpFunc
-  where
-    lookupEither s Nothing = Left s
-    lookupEither _ (Just r) = Right r
-    mpFunc Transition {..} = do
-      ss <- lookupEither startStateT $ Data.Map.lookup startStateT m
-      es <- lookupEither endStateT $ Data.Map.lookup endStateT m
-      return (ss, es, characterT, outputT)
+instance Peekable [] where
+  peek [] = Left "Empty List when peeking"
+  peek (x : _) = Right x
 
 -- a is the language, b is the output from one step
 -- class (HasState b Int) => StateMachine sm a b where
@@ -158,8 +88,6 @@ mapStates' m = fmap mpFunc
 --   stepMachine Dead _ _ = S.singleton Dead
 --   stepMachine _ _ _ = error "no step found from state - incorrect statemachine setup"
 
---   run :: (Ord a) => [a] -> Clock -> sm a -> ReturnValue
-
 --   smAcceptStates :: (Ord a) => sm a -> AcceptStates
 
 --   nextStates :: (Ord a) => sm a -> State -> States
@@ -174,23 +102,3 @@ mapStates' m = fmap mpFunc
 
 --   isAcceptable :: (Ord a) => sm a -> State -> Bool
 --   isAcceptable sm s = or $ S.map (`S.member` smAcceptStates sm) (reachableStates sm s)
-
--- class RunningStateMachine rsm where
---   getReturnValue :: (Ord a) => rsm a -> ReturnValue
---   step :: (Ord a) => rsm a -> rsm a
---   runSM :: (Ord a) => rsm a -> rsm a
---   runSM running
---     | getReturnValue running' == Running = runSM running'
---     | otherwise = running'
---     where
---       running' = step running
-
--- fromTuplesToMap :: (Ord a, Ord c) => (b -> b -> b) -> [(a, b, c)] -> M.Map a (M.Map c b)
--- fromTuplesToMap _ [] = M.empty
--- fromTuplesToMap f ((a, b, c) : xs) = M.unionWith (M.unionWith f) (M.singleton a (M.singleton c b)) mp
---   where
---     mp = fromTuplesToMap f xs
-
--- fromSingleton :: S.Set a -> a
--- fromSingleton (S.toList -> [x]) = x
--- fromSingleton _ = error "tried to get single item from non-singleton set"

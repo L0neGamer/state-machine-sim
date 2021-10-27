@@ -35,6 +35,8 @@ library:
     - FlexibleContexts 
     - StandaloneDeriving 
     - TypeOperators 
+    - FlexibleInstances 
+    - RankNTypes
   ghc-options:
     - -Wall
 
