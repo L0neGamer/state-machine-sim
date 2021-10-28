@@ -1,11 +1,17 @@
-module NFA where
+module NFA (NFATransition, NFA, RunNFA, runNFA) where
 
 import Data.Map as M (lookup)
 import Data.Set as S (Set, empty, foldr, intersection, null, toList, union, unions)
 import Data.Vector ((!?))
 import Lib (Error, dropNothings, maybeToError)
 import RunStateMachine
-import StateMachine
+  ( Clock,
+    ReturnValue (Running, Term),
+    RunningSM (..),
+    constructRunningSM,
+    runSM,
+  )
+import StateMachine (StateID, StateMachine (..), Transition, runStep)
 
 type NFA a = StateMachine (Maybe a) Set ()
 

@@ -21,6 +21,10 @@ lookupEither k m
 lookupError :: (Ord k) => String -> k -> Map k v -> Error v
 lookupError s k = maybeToError s . M.lookup k
 
+fromJust :: a -> Maybe a -> a
+fromJust _ (Just a) = a
+fromJust a Nothing = a
+
 updateVector :: Int -> a -> Vector a -> Maybe (Vector a)
 updateVector i a v
   | i < 0 || i >= length v = Nothing
@@ -44,13 +48,18 @@ newtype Single a = Single a deriving (Show, Eq, Ord)
 
 class Peekable a where
   peek :: a b -> Error b
+  swapFirst :: b -> a b -> a b
 
 instance Peekable [] where
   peek [] = Left "Empty List when peeking"
   peek (x : _) = Right x
+  swapFirst _ [] = []
+  swapFirst a (_ : as) = a : as
 
--- -- TODO: https://archives.haskell.org/projects.haskell.org/diagrams/tutorials.html
+-- TODO: https://archives.haskell.org/projects.haskell.org/diagrams/tutorials.html
 -- -- or https://discordapp.com/channels/195989586260918272/222003210670440451/709816458921640057
+
+-- TODO: datatype for errors so more data can be revealed
 
 -- class StateMachine sm where
 --   removeTransition :: (Ord a) => Transition a -> sm a -> sm a

@@ -100,3 +100,8 @@ extractResult :: Error (Either (String, RunningSM f l s e) (RunningSM f l s e)) 
 extractResult (Left s) = Left s
 extractResult (Right (Left (s, _))) = Left s
 extractResult (Right (Right rsm)) = Right $ returnValue rsm
+
+extractErrorAndMachine :: Error (Either (String, RunningSM f l s e) (RunningSM f l s e)) -> Error (String, RunningSM f l s e)
+extractErrorAndMachine (Left s) = Left s
+extractErrorAndMachine (Right (Left r)) = Right r
+extractErrorAndMachine (Right (Right r)) = Right ("successful run", r)

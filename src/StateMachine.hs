@@ -32,17 +32,14 @@ getState (State s) = Right s
 
 class StateLike s where
   fromStateID :: StateID -> s StateID
-  toStateSet :: s StateID -> Set StateID
   combineStates :: StateID -> s StateID -> s StateID
 
 instance StateLike Set where
   fromStateID = singleton
-  toStateSet = id
   combineStates s ss = S.insert s ss
 
 instance StateLike Single where
   fromStateID = Single
-  toStateSet (Single s) = singleton s
   combineStates s _ = Single s
 
 data StateMachine l s e = StateMachine

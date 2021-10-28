@@ -37,6 +37,7 @@ library:
     - TypeOperators 
     - FlexibleInstances 
     - RankNTypes
+    - TypeApplications
   ghc-options:
     - -Wall
 
@@ -44,7 +45,10 @@ executables:
   state-machine-sim-exe:
     main: Main.hs
     source-dirs: app
+    default-extensions:
+      - TypeApplications
     ghc-options:
+      - -Wall
       - -threaded
       - -rtsopts
       - -with-rtsopts=-N
