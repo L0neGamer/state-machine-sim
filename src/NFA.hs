@@ -1,7 +1,7 @@
-module NFA (NFATransition, NFA, RunNFA, runNFA) where
+module NFA (NFATransition, NFA, RunNFA, runNFA, NFAData (..)) where
 
 import Data.Map as M (lookup)
-import Data.Set as S (Set, empty, foldr, intersection, null, toList, union, unions)
+import Data.Set as S (Set, empty, foldr, intersection, isSubsetOf, null, toList, union, unions)
 import Data.Vector ((!?))
 import Lib (Error, dropNothings, maybeToError)
 import RunStateMachine
@@ -10,14 +10,17 @@ import RunStateMachine
     RunningSM (..),
     constructRunningSM,
     runSM,
+    updateCurrentState,
   )
 import StateMachine (StateID, StateMachine (..), Transition, runStep)
 
-type NFA a = StateMachine (Maybe a) Set ()
+data NFAData a = Epsilon | Val a deriving (Show, Eq, Ord)
 
-type NFATransition a = Transition (Maybe a) ()
+type NFA a = StateMachine (NFAData a) Set ()
 
-type RunNFA a = RunningSM [] (Maybe a) Set ()
+type NFATransition a = Transition (NFAData a) ()
+
+type RunNFA a = RunningSM [] (NFAData a) Set ()
 
 runNFA :: (Ord a) => [a] -> Clock -> NFA a -> Error (Either (String, RunNFA a) (RunNFA a))
 runNFA tape' clk nfa = do
@@ -25,12 +28,15 @@ runNFA tape' clk nfa = do
   Right $ runSM rnfa
 
 getRunNFA :: (Ord a) => [a] -> Clock -> NFA a -> Error (RunNFA a)
-getRunNFA tape' clk nfa = constructRunningSM (Just <$> tape') clk nfa (\_ x -> tail x) stepFunc haltingFunc
+getRunNFA tape' clk nfa = do
+  rnfa <- constructRunningSM (Val <$> tape') clk nfa (\_ x -> tail x) stepFunc haltingFunc
+  newStartStates <- expandEpsilon (currentState rnfa) (stateMachine rnfa)
+  return $ updateCurrentState newStartStates rnfa
   where
     stepFunc ss l RunSM {..} = do
-      cleanss' <- expandEpsilon ss stateMachine
-      statesList <- mapM (\s -> runStep stateMachine s l) (S.toList cleanss')
-      return (Prelude.foldr (S.union . fst) S.empty statesList, ())
+      statesList <- mapM (\s -> runStep stateMachine s l) (S.toList ss)
+      expandedStates <- expandEpsilon (Prelude.foldr (S.union . fst) S.empty statesList) stateMachine
+      return (expandedStates, ())
     haltingFunc ss _ as StateMachine {..}
       | Prelude.null as && allVals = Term $ not . S.null $ ss `S.intersection` acceptStateIDs
       | allVals = Running
@@ -41,8 +47,8 @@ getRunNFA tape' clk nfa = constructRunningSM (Just <$> tape') clk nfa (\_ x -> t
 expandEpsilon :: (Ord a) => Set StateID -> NFA a -> Error (Set StateID)
 expandEpsilon ss nfa@StateMachine {..} = do
   ms <- mapM (\s -> maybeToError "Could not find state (expand epsilon)" (transitions !? s)) (filter (>= 0) $ S.toList ss)
-  let ss' = S.unions $ ss : dropNothings (fmap (fmap fst . M.lookup Nothing) ms)
-  if ss == ss' then return ss' else expandEpsilon ss' nfa
+  let ss' = S.unions $ dropNothings (fmap (fmap fst . M.lookup Epsilon) ms)
+  if ss' `S.isSubsetOf` ss then return ss else expandEpsilon (S.union ss ss') nfa
 
 -----
 -- stepThroughEpsilons :: (Ord a) => NFAStateMachine a -> State -> States

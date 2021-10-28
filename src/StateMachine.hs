@@ -161,7 +161,10 @@ constructStateMachine name' language' states' transitions' startState' acceptSta
     namesToNumbers' = M.insert Dead (-1) $ M.fromList $ zip (S.toAscList states'') [0 ..]
     sm = StateMachine name' language' (V.replicate (size states'') M.empty) (-2) S.empty addOutput' namesToNumbers'
 
-inferStateMachine :: (Ord l, StateLike s) => String -> [Transition l e] -> State -> Set State -> (e -> e -> e) -> Error (StateMachine l s e)
-inferStateMachine name' transitions' = constructStateMachine name' language' states' transitions'
+inferStateMachine' :: (Ord l, StateLike s) => (String -> Set l -> Set State -> [Transition l e] -> State -> Set State -> (e -> e -> e) -> Error (StateMachine l s e)) -> String -> [Transition l e] -> State -> Set State -> (e -> e -> e) -> Error (StateMachine l s e)
+inferStateMachine' conSM name' transitions' startState acceptStates addOutput' = conSM name' language' states' transitions' startState acceptStates addOutput'
   where
     (states', language') = getStatesAndLang transitions'
+
+inferStateMachine :: (Ord l, StateLike s) => String -> [Transition l e] -> State -> Set State -> (e -> e -> e) -> Error (StateMachine l s e)
+inferStateMachine = inferStateMachine' constructStateMachine

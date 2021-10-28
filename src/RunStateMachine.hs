@@ -36,7 +36,7 @@ isTerm _ = False
 
 data RunningSM f l s e = RunSM
   { tape :: Peekable f => f l,
-    currentState :: StateLike s => s StateID,
+    currentState :: !(StateLike s => s StateID),
     returnValue :: ReturnValue,
     remainingIter :: Clock,
     stateMachine :: !(StateMachine l s e),

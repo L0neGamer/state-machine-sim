@@ -45,7 +45,7 @@ busyBeaver3State = do
           (q2, q0, (1, 1, L))
         ]
 
--- -- 13 1s, 107 steps
+-- | 13 1s, 107 steps
 busyBeaver4State :: Error BusyBeaverStore
 busyBeaver4State = do
   sm <- inferStateMachine "busyBeaver4State" transitions q0 (S.singleton qH) const
@@ -64,7 +64,7 @@ busyBeaver4State = do
           (q3, q0, (1, 0, R))
         ]
 
--- 4098 1s, 47176870 steps
+-- | 4098 1s, 47176870 steps
 busyBeaver5State :: Error BusyBeaverStore
 busyBeaver5State = do
   sm <- inferStateMachine "busyBeaver5State" transitions q0 (S.singleton qH) const

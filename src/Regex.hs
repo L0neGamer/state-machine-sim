@@ -4,7 +4,7 @@ module Regex where
 
 import Data.Set as S (singleton)
 import Lib (Error)
-import NFA (NFA, NFATransition, runNFA)
+import NFA (NFA, NFAData (Epsilon, Val), NFATransition, runNFA)
 import RunStateMachine (ReturnValue, clock, extractResult)
 import StateMachine (State (State), inferStateMachine, tupleToSimpleTransition)
 
@@ -113,18 +113,18 @@ stateFromInteger = State . show
 tupleIntegerState :: (Integer, Integer, a) -> (State, State, a)
 tupleIntegerState (i, i', a) = (stateFromInteger i, stateFromInteger i', a)
 
-convertList :: [(Integer, Integer, Maybe a)] -> [NFATransition a]
+convertList :: [(Integer, Integer, NFAData a)] -> [NFATransition a]
 convertList = (tupleToSimpleTransition . tupleIntegerState <$>)
 
 regexToNFA :: Regex -> Integer -> (Integer, Integer, [NFATransition Char])
 regexToNFA (RegexSingle term) i = termToNFA term i
-regexToNFA (RegexAlternation term regex) i = (q0, q3, ts)
+regexToNFA (RegexAlternation term regex) i = (q0, q5, ts)
   where
     q0 = i
     (q1, q2, xs) = termToNFA term (q0 + 1)
     (q3, q4, xs') = regexToNFA regex (q2 + 1)
     q5 = q4 + 1
-    ts = xs ++ xs' ++ convertList [(q0, q1, Nothing), (q0, q3, Nothing), (q2, q5, Nothing), (q4, q5, Nothing)]
+    ts = xs ++ xs' ++ convertList [(q0, q1, Epsilon), (q0, q3, Epsilon), (q2, q5, Epsilon), (q4, q5, Epsilon)]
 
 termToNFA :: Term -> Integer -> (Integer, Integer, [NFATransition Char])
 termToNFA TermNil i = (i, i, [])
@@ -139,11 +139,11 @@ factToNFA :: Factor -> Integer -> (Integer, Integer, [NFATransition Char])
 factToNFA (FactorStar fact) i = (q0, q1, ts)
   where
     (q0, q1, xs) = factToNFA fact i
-    ts = xs ++ convertList [(q0, q1, Nothing), (q1, q0, Nothing)]
+    ts = xs ++ convertList [(q0, q1, Epsilon), (q1, q0, Epsilon)]
 factToNFA (FactorSingle base) i = baseToNFA base i
 
 baseToNFA :: Base -> Integer -> (Integer, Integer, [NFATransition Char])
-baseToNFA (BaseChar c) i = (i, i + 1, [tupleToSimpleTransition (stateFromInteger i, stateFromInteger (i + 1), Just c)])
+baseToNFA (BaseChar c) i = (i, i + 1, convertList [(i, i + 1, Val c)])
 baseToNFA (BaseGroup regex) s = regexToNFA regex s
 
 regexStrToNFA :: String -> Error (NFA Char)
