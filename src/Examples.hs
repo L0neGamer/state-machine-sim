@@ -1,13 +1,40 @@
-module Examples (busyBeaver3State, busyBeaver4State, busyBeaver5State, busyBeaverCheck, emptyDFA, exampleDFA, runExampleDFA) where
+module Examples
+  ( busyBeaver3State,
+    busyBeaver4State,
+    busyBeaver5State,
+    busyBeaverCheck,
+    emptyDFA,
+    exampleDFA,
+    runExampleDFA,
+  )
+where
 
 import DFA (DFA, RunDFAResult, runDFA)
 import Data.Foldable (Foldable (toList))
 import Data.Set as S (empty, singleton)
 import GHC.OldList (genericTake)
 import Lib (Error)
-import RunStateMachine (RunningSM (remainingIter, tape), clock, extractErrorAndMachine, getTime)
-import StateMachine (State (State), Transition (Transition), constructStateMachine, inferStateMachine, tupleToSimpleTransition)
-import TuringMachine (RunTuringMachine, Tape (cursor, left, right), TapeDir (L, R), TuringMachine, runTuringMachine, startingTape)
+import RunStateMachine
+  ( RunningSM (remainingIter, tape),
+    clock,
+    extractErrorAndMachine,
+    getTime,
+  )
+import StateMachine
+  ( State (State),
+    Transition (Transition),
+    constructStateMachine,
+    inferStateMachine,
+    tupleToSimpleTransition,
+  )
+import TuringMachine
+  ( RunTuringMachine,
+    Tape (cursor, left, right),
+    TapeDir (L, R),
+    TuringMachine,
+    runTuringMachine,
+    startingTape,
+  )
 
 q0, q1, q2, q3, q4 :: State
 q0 : q1 : q2 : q3 : q4 : _ = fmap (State . show) ([0 ..] :: [Integer])
@@ -19,7 +46,20 @@ qH = State "haltingState"
 
 -- | @exampleDFA@ accepts 101*0
 exampleDFA :: Error (DFA Int)
-exampleDFA = inferStateMachine "DFA accepts 101*0" (fmap tupleToSimpleTransition [(q0, q1, 1), (q1, q2, 0), (q2, q2, 1), (q2, q3, 0)]) q0 (S.singleton q3) const
+exampleDFA =
+  inferStateMachine
+    "DFA accepts 101*0"
+    ( fmap
+        tupleToSimpleTransition
+        [ (q0, q1, 1),
+          (q1, q2, 0),
+          (q2, q2, 1),
+          (q2, q3, 0)
+        ]
+    )
+    q0
+    (S.singleton q3)
+    const
 
 -- | @runExampleDFA@ runs @exampleDFA@ on a given inpu
 runExampleDFA :: [Int] -> RunDFAResult Int
@@ -34,7 +74,9 @@ emptyDFA = constructStateMachine "empty DFA" S.empty (S.singleton q0) [] q0 S.em
 type BusyBeaverStore = (Integer, Integer, TuringMachine Integer)
 
 -- | Utility function so that I don't have to manually recode the busybeavers
-convOldFormNewForm :: (State, State, (Integer, Integer, TapeDir)) -> Transition Integer (Integer, TapeDir)
+convOldFormNewForm ::
+  (State, State, (Integer, Integer, TapeDir)) ->
+  Transition Integer (Integer, TapeDir)
 convOldFormNewForm (s, s', (a, e, e')) = Transition s s' a (e, e')
 
 -- | @busyBeaver3State@ is a turing machine that outputs 6 1's over 14 steps
@@ -101,7 +143,9 @@ busyBeaverCheck (ones, steps, tm) = do
   (_, runMachine) <- extractErrorAndMachine runMachine'
   let timeSpent = getTime (remainingIter runMachine)
       tape' = tape runMachine
-      tapeSum = sum (genericTake (timeSpent - cursor tape') $ toList (right tape')) + sum (genericTake (timeSpent + cursor tape') $ toList (left tape'))
+      tapeSum =
+        sum (genericTake (timeSpent - cursor tape') $ toList (right tape'))
+          + sum (genericTake (timeSpent + cursor tape') $ toList (left tape'))
   return (ones == tapeSum, steps == timeSpent, runMachine)
   where
     runMachine' = runTuringMachine (startingTape 0) (clock 0) tm

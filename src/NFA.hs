@@ -1,7 +1,15 @@
 module NFA (NFATransition, NFA, RunNFA, runNFA, NFAData (..)) where
 
 import Data.Map as M (lookup)
-import Data.Set as S (Set, empty, foldr, intersection, isSubsetOf, null, toList, union, unions)
+import Data.Set as S
+  ( Set,
+    empty,
+    intersection,
+    isSubsetOf,
+    toList,
+    union,
+    unions,
+  )
 import Data.Vector ((!?))
 import Lib (Error, dropNothings, maybeToEither)
 import RunStateMachine
@@ -35,18 +43,24 @@ getRunNFA tape' clk nfa = do
   where
     stepFunc ss l RunSM {..} = do
       statesList <- mapM (\s -> runStep stateMachine s l) (S.toList ss)
-      expandedStates <- expandEpsilon (Prelude.foldr (S.union . fst) S.empty statesList) stateMachine
+      expandedStates <-
+        expandEpsilon
+          (foldr (S.union . fst) S.empty statesList)
+          stateMachine
       return (expandedStates, ())
     haltingFunc ss _ as StateMachine {..}
-      | Prelude.null as && allVals = Term $ not . S.null $ ss `S.intersection` acceptStateIDs
+      | null as && allVals = Term $ not . null $ S.intersection ss acceptStateIDs
       | allVals = Running
       | otherwise = Term False
       where
-        allVals = S.foldr (\a b -> (a >= 0) || b) False ss
+        allVals = foldr (\a b -> (a >= 0) || b) False ss
 
 expandEpsilon :: (Ord a) => Set StateID -> NFA a -> Error (Set StateID)
 expandEpsilon ss nfa@StateMachine {..} = do
-  ms <- mapM (\s -> maybeToEither "Could not find state (expand epsilon)" (transitions !? s)) (filter (>= 0) $ S.toList ss)
+  ms <-
+    mapM
+      (\s -> maybeToEither "Could not find state (expand epsilon)" (transitions !? s))
+      (filter (>= 0) $ S.toList ss)
   let ss' = S.unions $ dropNothings (fmap (fmap fst . M.lookup Epsilon) ms)
   if ss' `S.isSubsetOf` ss then return ss else expandEpsilon (S.union ss ss') nfa
 

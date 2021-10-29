@@ -21,7 +21,18 @@ where
 import Control.Monad (when)
 import Data.Bifunctor (Bifunctor (bimap))
 import Data.Map as M (Map, empty, fromList, insert, lookup, member, (!))
-import Data.Set as S (Set, delete, empty, fromList, insert, notMember, singleton, size, toAscList, toList)
+import Data.Set as S
+  ( Set,
+    delete,
+    empty,
+    fromList,
+    insert,
+    notMember,
+    singleton,
+    size,
+    toAscList,
+    toList,
+  )
 import Data.Vector as V (Vector, replicate, (!?))
 import Lib
   ( Error,
@@ -106,7 +117,7 @@ tupleToSimpleTransition :: (State, State, a) -> Transition a ()
 tupleToSimpleTransition (s, s', a) = Transition s s' a ()
 
 getStatesAndLang :: (Ord a) => [Transition a b] -> (Set State, Set a)
-getStatesAndLang = Prelude.foldr combine (S.empty, S.empty)
+getStatesAndLang = foldr combine (S.empty, S.empty)
   where
     combine (Transition s s' a _) (ss, as) = (S.insert s (S.insert s' ss), S.insert a as)
 
@@ -141,7 +152,11 @@ addTransitions ts sm = foldr foldFunc (return sm) ts
     foldFunc _ (Left s) = Left s
     foldFunc t (Right statemachine) = addTransition t statemachine
 
--- | @constructStateMachine@ takes the machine name, the language, all the states in the machine, all the transitions between states using the language producing side effects of type e, the start state, the accept states, a way to combine side effects, and will return either an error from the construction of the state machine or return a state machine
+-- | @constructStateMachine@ takes the machine name, the language, all the states in the
+-- machine, all the transitions between states using the language producing side effects
+-- of type e, the start state, the accept states, a way to combine side effects, and will
+-- return either an error from the construction of the state machine or return a state
+-- machine
 constructStateMachine :: (Ord l, StateLike s) => String -> Set l -> Set State -> [Transition l e] -> State -> Set State -> (e -> e -> e) -> Error (StateMachine l s e)
 constructStateMachine name' language' states' transitions' startState' acceptStates' addOutput' = do
   acceptStatesList <- mapM (\s -> lookupEither' ("Could not find accept state " ++ show s) s namesToNumbers') (S.toList (S.delete Dead acceptStates'))

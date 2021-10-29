@@ -1,8 +1,15 @@
-module DFA (DFATransition, DFA, RunDFA,RunDFAResult, runDFA) where
+module DFA (DFATransition, DFA, RunDFA, RunDFAResult, runDFA) where
 
 import Data.Set as S (member)
 import Lib (Error, Single (..))
-import RunStateMachine (Clock, ReturnValue (Running, Term), RunSMResult, RunningSM (..), constructRunningSM, runSM)
+import RunStateMachine
+  ( Clock,
+    ReturnValue (Running, Term),
+    RunSMResult,
+    RunningSM (..),
+    constructRunningSM,
+    runSM,
+  )
 import StateMachine (StateMachine (..), Transition, runStep)
 
 type DFA a = StateMachine a Single ()
@@ -19,7 +26,14 @@ runDFA tape' clk dfa = do
   return $ runSM rdfa
 
 getRunDFA :: (Ord a) => [a] -> Clock -> DFA a -> Error (RunDFA a)
-getRunDFA tape' clk dfa = constructRunningSM tape' clk dfa (\_ x -> tail x) stepFunc haltingFunc
+getRunDFA tape' clk dfa =
+  constructRunningSM
+    tape'
+    clk
+    dfa
+    (\_ x -> tail x)
+    stepFunc
+    haltingFunc
   where
     stepFunc (Single s) l RunSM {..} = do
       (s', _) <- runStep stateMachine s l

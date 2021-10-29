@@ -2,7 +2,14 @@ module Main where
 
 import Convert (convertDFAToNFA)
 import DFA (DFA)
-import Examples (busyBeaver3State, busyBeaver4State, busyBeaverCheck, emptyDFA, exampleDFA, runExampleDFA)
+import Examples
+  ( busyBeaver3State,
+    busyBeaver4State,
+    busyBeaverCheck,
+    emptyDFA,
+    exampleDFA,
+    runExampleDFA,
+  )
 import Lib (Error)
 import Regex (checkString, regexStrToNFA)
 import RunStateMachine (extractResult)

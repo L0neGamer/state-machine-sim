@@ -1,6 +1,7 @@
 module Regex (checkString, regexStrToNFA) where
 
--- thanks to this page for help in this file: http://matt.might.net/articles/parsing-regex-with-recursive-descent/
+-- thanks to this page for help in this file:
+-- http://matt.might.net/articles/parsing-regex-with-recursive-descent/
 
 import Data.Set as S (singleton)
 import Lib (Error)
@@ -110,7 +111,12 @@ strToParsedRegex str = do
   (toks, regex) <- parseRegex . toTokens $ str
   if null toks
     then return regex
-    else Left $ "regex was not parsed correctly. Leftover:" ++ show toks ++ " Original:" ++ show str
+    else
+      Left $
+        "regex was not parsed correctly. Leftover:"
+          ++ show toks
+          ++ " Original:"
+          ++ show str
 
 stateFromInteger :: Integer -> State
 stateFromInteger = State . show
@@ -129,7 +135,15 @@ regexToNFA (RegexAlternation term regex) i = (q0, q5, ts)
     (q1, q2, xs) = termToNFA term (q0 + 1)
     (q3, q4, xs') = regexToNFA regex (q2 + 1)
     q5 = q4 + 1
-    ts = xs ++ xs' ++ convertList [(q0, q1, Epsilon), (q0, q3, Epsilon), (q2, q5, Epsilon), (q4, q5, Epsilon)]
+    ts =
+      xs
+        ++ xs'
+        ++ convertList
+          [ (q0, q1, Epsilon),
+            (q0, q3, Epsilon),
+            (q2, q5, Epsilon),
+            (q4, q5, Epsilon)
+          ]
 
 termToNFA :: Term -> Integer -> (Integer, Integer, [NFATransition Char])
 termToNFA TermNil i = (i, i, [])
@@ -155,7 +169,12 @@ regexStrToNFA :: String -> Error (NFA Char)
 regexStrToNFA str = do
   regex <- strToParsedRegex str
   let (start, end, xs) = regexToNFA regex 0
-  inferStateMachine ("regex NFA `" ++ str ++ "`") xs (stateFromInteger start) (S.singleton $ stateFromInteger end) const
+  inferStateMachine
+    ("regex NFA `" ++ str ++ "`")
+    xs
+    (stateFromInteger start)
+    (S.singleton $ stateFromInteger end)
+    const
 
 checkString :: String -> String -> Error ReturnValue
 checkString inpStr regex = do

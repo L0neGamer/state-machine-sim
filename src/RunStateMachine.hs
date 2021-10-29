@@ -54,6 +54,10 @@ isTerm :: ReturnValue -> Bool
 isTerm (Term _) = True
 isTerm _ = False
 
+type StepFunction f l s e = s StateID -> l -> RunningSM f l s e -> Error (s StateID, e)
+
+type HaltingFunction f l s e = s StateID -> e -> f l -> StateMachine l s e -> ReturnValue
+
 data RunningSM f l s e = RunSM
   { tape :: Peekable f => f l,
     currentState :: !(StateLike s => s StateID),
@@ -61,11 +65,15 @@ data RunningSM f l s e = RunSM
     remainingIter :: Clock,
     stateMachine :: !(StateMachine l s e),
     modifyTape :: e -> f l -> f l,
-    step :: s StateID -> l -> RunningSM f l s e -> Error (s StateID, e),
-    halting :: s StateID -> e -> f l -> StateMachine l s e -> ReturnValue
+    step :: StepFunction f l s e,
+    halting :: HaltingFunction f l s e
   }
 
-instance (Show (f l), Show l, Show (s StateID), Show e, StateLike s, Peekable f) => Show (RunningSM f l s e) where
+instance
+  (Show (f l), Show l, Show (s StateID), Show e, StateLike s, Peekable f) =>
+  Show
+    (RunningSM f l s e)
+  where
   show rsm =
     "RunSM "
       ++ contained tape
@@ -77,40 +85,73 @@ instance (Show (f l), Show l, Show (s StateID), Show e, StateLike s, Peekable f)
       contained f = "(" ++ show (f rsm) ++ ") "
 
 updateTape :: Peekable f => f l -> RunningSM f l s e -> RunningSM f l s e
-updateTape v RunSM {..} = RunSM v currentState returnValue remainingIter stateMachine modifyTape step halting
+updateTape v RunSM {..} =
+  RunSM v currentState returnValue remainingIter stateMachine modifyTape step halting
 
 updateCurrentState :: StateLike s => s StateID -> RunningSM f l s e -> RunningSM f l s e
-updateCurrentState v RunSM {..} = RunSM tape v returnValue remainingIter stateMachine modifyTape step halting
+updateCurrentState v RunSM {..} =
+  RunSM tape v returnValue remainingIter stateMachine modifyTape step halting
 
 updateReturnValue :: ReturnValue -> RunningSM f l s e -> RunningSM f l s e
-updateReturnValue v RunSM {..} = RunSM tape currentState v remainingIter stateMachine modifyTape step halting
+updateReturnValue v RunSM {..} =
+  RunSM tape currentState v remainingIter stateMachine modifyTape step halting
 
 updateRemainingIter :: Clock -> RunningSM f l s e -> RunningSM f l s e
-updateRemainingIter v RunSM {..} = RunSM tape currentState returnValue v stateMachine modifyTape step halting
+updateRemainingIter v RunSM {..} =
+  RunSM tape currentState returnValue v stateMachine modifyTape step halting
 
 updateStateMachine :: StateMachine l s e -> RunningSM f l s e -> RunningSM f l s e
-updateStateMachine v RunSM {..} = RunSM tape currentState returnValue remainingIter v modifyTape step halting
+updateStateMachine v RunSM {..} =
+  RunSM tape currentState returnValue remainingIter v modifyTape step halting
 
 updateModifyTape :: (e -> f l -> f l) -> RunningSM f l s e -> RunningSM f l s e
-updateModifyTape v RunSM {..} = RunSM tape currentState returnValue remainingIter stateMachine v step halting
+updateModifyTape v RunSM {..} =
+  RunSM tape currentState returnValue remainingIter stateMachine v step halting
 
-updateStep :: (s StateID -> l -> RunningSM f l s e -> Error (s StateID, e)) -> RunningSM f l s e -> RunningSM f l s e
-updateStep v RunSM {..} = RunSM tape currentState returnValue remainingIter stateMachine modifyTape v halting
+updateStep :: StepFunction f l s e -> RunningSM f l s e -> RunningSM f l s e
+updateStep v RunSM {..} =
+  RunSM tape currentState returnValue remainingIter stateMachine modifyTape v halting
 
-updateHalting :: (s StateID -> e -> f l -> StateMachine l s e -> ReturnValue) -> RunningSM f l s e -> RunningSM f l s e
-updateHalting v RunSM {..} = RunSM tape currentState returnValue remainingIter stateMachine modifyTape step v
+updateHalting :: HaltingFunction f l s e -> RunningSM f l s e -> RunningSM f l s e
+updateHalting v RunSM {..} =
+  RunSM tape currentState returnValue remainingIter stateMachine modifyTape step v
 
-constructRunningSM :: StateLike s => f l -> Clock -> StateMachine l s e -> (e -> f l -> f l) -> (s StateID -> l -> RunningSM f l s e -> Error (s StateID, e)) -> (s StateID -> e -> f l -> StateMachine l s e -> ReturnValue) -> Error (RunningSM f l s e)
-constructRunningSM tape' iter sm' modifyTape' step' halting' = return $ RunSM tape' (fromStateID (startStateID sm')) Running iter sm' modifyTape' step' halting'
+constructRunningSM ::
+  StateLike s =>
+  f l ->
+  Clock ->
+  StateMachine l s e ->
+  (e -> f l -> f l) ->
+  StepFunction f l s e ->
+  HaltingFunction f l s e ->
+  Error (RunningSM f l s e)
+constructRunningSM tape' iter sm' modifyTape' step' halting' =
+  return $
+    RunSM
+      tape'
+      (fromStateID (startStateID sm'))
+      Running
+      iter
+      sm'
+      modifyTape'
+      step'
+      halting'
 
-runSM :: (Peekable f, StateLike s) => RunningSM f l s e -> Either (String, RunningSM f l s e) (RunningSM f l s e)
+runSM ::
+  (Peekable f, StateLike s) =>
+  RunningSM f l s e ->
+  Either (String, RunningSM f l s e) (RunningSM f l s e)
 runSM rsm@RunSM {..} = do
   t <- leftWrap $ peek tape
   (s, e) <- leftWrap $ step currentState t rsm
   let tape' = modifyTape e tape
       remainingIter' = tickClock remainingIter
-  returnValue' <- leftWrap $ returnValueCheckClock (halting s e tape' stateMachine) remainingIter'
-  let rsm' = updateReturnValue returnValue' $ updateRemainingIter remainingIter' $ updateCurrentState s $ updateTape tape' rsm
+  returnValue' <-
+    leftWrap $
+      returnValueCheckClock (halting s e tape' stateMachine) remainingIter'
+  let rsm' =
+        updateReturnValue returnValue' $updateRemainingIter remainingIter' $
+          updateCurrentState s $ updateTape tape' rsm
   if isTerm returnValue' then return rsm' else runSM rsm'
   where
     leftWrap (Left s) = Left (s, rsm)
