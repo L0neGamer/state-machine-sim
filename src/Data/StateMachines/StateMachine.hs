@@ -135,11 +135,11 @@ updateTransitions v sm = sm {transitions = v}
 updateStartStateID :: StateID -> StateMachine l s e -> StateMachine l s e
 updateStartStateID v sm = sm {startStateID = v}
 
--- | Overwrites the `AcceptStateIDs` in a given `StateMachine`.
+-- | Overwrites the `acceptStateIDs` in a given `StateMachine`.
 updateAcceptStateIDs :: Set StateID -> StateMachine l s e -> StateMachine l s e
 updateAcceptStateIDs v sm = sm {acceptStateIDs = v}
 
--- | Overwrites the `AddOutput` in a given `StateMachine`.
+-- | Overwrites the `addOutput` in a given `StateMachine`.
 updateAddOutput :: (e -> e -> e) -> StateMachine l s e -> StateMachine l s e
 updateAddOutput v sm = sm {addOutput = v}
 
