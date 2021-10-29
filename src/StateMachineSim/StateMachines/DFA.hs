@@ -1,4 +1,4 @@
-module DFA
+module StateMachineSim.StateMachines.DFA
   ( DFATransition,
     DFA,
     RunDFA,
@@ -8,8 +8,8 @@ module DFA
 where
 
 import Data.Set as S (member)
-import Lib (Single (..))
-import RunStateMachine
+import StateMachineSim.Lib.Lib (Single (..))
+import StateMachineSim.Lib.RunStateMachine
   ( Clock,
     ReturnValue (Running, Term),
     RunSMResult,
@@ -17,7 +17,7 @@ import RunStateMachine
     constructRunningSM,
     runSM,
   )
-import StateMachine (StateMachine (..), Transition, runStep)
+import StateMachineSim.Lib.StateMachine(StateMachine (..), Transition, runStep)
 
 -- | @DFA@ is a type alias that represents the default type for DFAs
 type DFA a = StateMachine a Single ()

@@ -1,4 +1,4 @@
-module Lib
+module StateMachineSim.Lib.Lib
   ( maybeToEither,
     Error,
     Single (..),

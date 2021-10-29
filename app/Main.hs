@@ -1,9 +1,9 @@
 module Main where
 
-import Convert (convertDFAToNFA)
-import DFA (DFA)
+import StateMachineSim.StateMachines.Convert (convertDFAToNFA)
+import StateMachineSim.StateMachines.DFA (DFA)
 import Data.Functor ((<&>))
-import Examples
+import StateMachineSim.StateMachines.Examples
   ( busyBeaver3State,
     busyBeaver4State,
     busyBeaverCheck,
@@ -11,9 +11,9 @@ import Examples
     exampleDFA,
     runExampleDFA,
   )
-import Lib (Error)
-import Regex (checkString, regexStrToNFA)
-import RunStateMachine (extractResult)
+import StateMachineSim.Lib.Lib (Error)
+import StateMachineSim.StateMachines.Regex (checkString, regexStrToNFA)
+import StateMachineSim.Lib.RunStateMachine (extractResult)
 
 main :: IO ()
 main = do

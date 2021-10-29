@@ -1,4 +1,4 @@
-module Examples
+module StateMachineSim.StateMachines.Examples
   ( busyBeaver3State,
     busyBeaver4State,
     busyBeaver5State,
@@ -9,25 +9,25 @@ module Examples
   )
 where
 
-import DFA (DFA, RunDFAResult, runDFA)
+import StateMachineSim.StateMachines.DFA (DFA, RunDFAResult, runDFA)
 import Data.Foldable (Foldable (toList))
 import Data.Set as S (empty, singleton)
 import GHC.OldList (genericTake)
-import Lib (Error)
-import RunStateMachine
+import StateMachineSim.Lib.Lib (Error)
+import StateMachineSim.Lib.RunStateMachine
   ( Clock (time),
     RunningSM (remainingIter, tape),
     clock,
     extractErrorAndMachine,
   )
-import StateMachine
+import StateMachineSim.Lib.StateMachine
   ( State (State),
     Transition (Transition),
     constructStateMachine,
     inferStateMachine,
     tupleToSimpleTransition,
   )
-import TuringMachine
+import StateMachineSim.StateMachines.TuringMachine
   ( RunTuringMachine,
     Tape (cursor, left, right),
     TapeDir (L, R),

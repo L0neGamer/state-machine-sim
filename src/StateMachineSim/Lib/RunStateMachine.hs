@@ -1,4 +1,4 @@
-module RunStateMachine
+module StateMachineSim.Lib.RunStateMachine
   ( Clock (time),
     ReturnValue (Running, Term),
     RunSMResult,
@@ -19,8 +19,8 @@ module RunStateMachine
   )
 where
 
-import Lib (Error, Peekable (..))
-import StateMachine (StateID, StateLike (fromStateID), StateMachine (startStateID))
+import StateMachineSim.Lib.Lib (Error, Peekable (..))
+import StateMachineSim.Lib.StateMachine(StateID, StateLike (fromStateID), StateMachine (startStateID))
 
 -- | @Clock@ is a data type that stores a timer ticking upwards, either unbounded or
 -- bounded

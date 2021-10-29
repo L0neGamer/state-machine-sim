@@ -1,4 +1,4 @@
-module TuringMachine
+module StateMachineSim.StateMachines.TuringMachine
   ( TuringMachine,
     TuringMachineTransition,
     RunTuringMachine,
@@ -16,9 +16,9 @@ where
 import Data.Foldable (Foldable (toList))
 import Data.List (genericTake)
 import Data.Set as S (member)
-import Lib (Peekable (..), Single (..), fromJust)
-import RunStateMachine (Clock, ReturnValue (Running, Term), RunSMResult, RunningSM (..), constructRunningSM, runSM)
-import StateMachine (StateMachine (StateMachine, acceptStateIDs), Transition, runStep)
+import StateMachineSim.Lib.Lib (Peekable (..), Single (..), fromJust)
+import StateMachineSim.Lib.RunStateMachine (Clock, ReturnValue (Running, Term), RunSMResult, RunningSM (..), constructRunningSM, runSM)
+import StateMachineSim.Lib.StateMachine(StateMachine (StateMachine, acceptStateIDs), Transition, runStep)
 
 -- | @TapeDir@ is a data type that determines which direction the tape should move
 data TapeDir

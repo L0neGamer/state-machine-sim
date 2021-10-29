@@ -1,12 +1,12 @@
-module Convert (convertDFAToNFA) where
+module StateMachineSim.StateMachines.Convert (convertDFAToNFA) where
 
-import DFA (DFA)
+import StateMachineSim.StateMachines.DFA (DFA)
 import qualified Data.Bifunctor
 import Data.Map as M (map, mapKeys)
 import Data.Set as S (map, singleton)
-import Lib (Error, Single (Single))
-import NFA (NFA, NFAData (Val))
-import StateMachine
+import StateMachineSim.Lib.Lib (Error, Single (Single))
+import StateMachineSim.StateMachines.NFA (NFA, NFAData (Val))
+import StateMachineSim.Lib.StateMachine
   ( StateMachine
       ( StateMachine,
         acceptStateIDs,
