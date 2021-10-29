@@ -5,3 +5,4 @@ format.sh
 comp
 compprofile
 *.prof
+stack.yaml.lock

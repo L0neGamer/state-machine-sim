@@ -2,6 +2,9 @@ name: state-machine-sim
 version: 0.1.0.0
 github: "L0neGamer/state-machine-sim"
 license: BSD3
+author: "L0neGamer"
+maintainer: "L0neGamer"
+copyright: "L0neGamer"
 
 extra-source-files:
   - README.md
@@ -20,7 +23,6 @@ dependencies:
   - base >= 4.7 && < 5
   - containers
   - vector
-# - diagrams
 
 library:
   source-dirs: src
@@ -32,22 +34,20 @@ library:
     - MultiParamTypeClasses
     - TupleSections
     - ViewPatterns
-    - FlexibleContexts 
-    - StandaloneDeriving 
-    - TypeOperators 
-    - FlexibleInstances 
+    - FlexibleContexts
+    - StandaloneDeriving
+    - TypeOperators
+    - FlexibleInstances
     - RankNTypes
     - TypeApplications
-    - MultiWayIf 
+    - MultiWayIf
   ghc-options:
     - -Wall
 
 executables:
-  state-machine-sim:
+  state-machine-sim-exe:
     main: Main.hs
     source-dirs: app
-    default-extensions:
-      - TypeApplications
     ghc-options:
       - -Wall
       - -threaded
