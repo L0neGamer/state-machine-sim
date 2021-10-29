@@ -38,11 +38,12 @@ library:
     - FlexibleInstances 
     - RankNTypes
     - TypeApplications
+    - MultiWayIf 
   ghc-options:
     - -Wall
 
 executables:
-  state-machine-sim-exe:
+  state-machine-sim:
     main: Main.hs
     source-dirs: app
     default-extensions:

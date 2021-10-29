@@ -1,4 +1,24 @@
-module RunStateMachine where
+module RunStateMachine
+  ( Clock,
+    ReturnValue (Running, Term),
+    RunSMResult,
+    RunningSM (..),
+    updateTape,
+    updateCurrentState,
+    updateReturnValue,
+    updateRemainingIter,
+    updateStateMachine,
+    updateModifyTape,
+    updateStep,
+    updateHalting,
+    constructRunningSM,
+    runSM,
+    clock,
+    extractResult,
+    extractErrorAndMachine,
+    getTime,
+  )
+where
 
 import Lib (Error, Peekable (..))
 import StateMachine (StateID, StateLike (fromStateID), StateMachine (startStateID))
@@ -22,11 +42,11 @@ getTime (Countdown i j) = j - i
 getTime (Infinite i) = i
 
 returnValueCheckClock :: ReturnValue -> Clock -> Error ReturnValue
-returnValueCheckClock r@(Term _) _ = Right r
-returnValueCheckClock r (Infinite _) = Right r
+returnValueCheckClock r@(Term _) _ = return r
+returnValueCheckClock r (Infinite _) = return r
 returnValueCheckClock r (Countdown i _)
   | i <= 0 = Left "Ran out of time"
-  | otherwise = Right r
+  | otherwise = return r
 
 data ReturnValue = Running | Term Bool deriving (Eq, Show)
 
@@ -81,7 +101,7 @@ updateHalting :: (s StateID -> e -> f l -> StateMachine l s e -> ReturnValue) ->
 updateHalting v RunSM {..} = RunSM tape currentState returnValue remainingIter stateMachine modifyTape step v
 
 constructRunningSM :: StateLike s => f l -> Clock -> StateMachine l s e -> (e -> f l -> f l) -> (s StateID -> l -> RunningSM f l s e -> Error (s StateID, e)) -> (s StateID -> e -> f l -> StateMachine l s e -> ReturnValue) -> Error (RunningSM f l s e)
-constructRunningSM tape' iter sm' modifyTape' step' halting' = Right $ RunSM tape' (fromStateID (startStateID sm')) Running iter sm' modifyTape' step' halting'
+constructRunningSM tape' iter sm' modifyTape' step' halting' = return $ RunSM tape' (fromStateID (startStateID sm')) Running iter sm' modifyTape' step' halting'
 
 runSM :: (Peekable f, StateLike s) => RunningSM f l s e -> Either (String, RunningSM f l s e) (RunningSM f l s e)
 runSM rsm@RunSM {..} = do
@@ -91,17 +111,19 @@ runSM rsm@RunSM {..} = do
       remainingIter' = tickClock remainingIter
   returnValue' <- leftWrap $ returnValueCheckClock (halting s e tape' stateMachine) remainingIter'
   let rsm' = updateReturnValue returnValue' $ updateRemainingIter remainingIter' $ updateCurrentState s $ updateTape tape' rsm
-  if isTerm returnValue' then Right rsm' else runSM rsm'
+  if isTerm returnValue' then return rsm' else runSM rsm'
   where
     leftWrap (Left s) = Left (s, rsm)
-    leftWrap (Right r) = Right r
+    leftWrap (Right r) = return r
 
-extractResult :: Error (Either (String, RunningSM f l s e) (RunningSM f l s e)) -> Error ReturnValue
+type RunSMResult f l s e = Error (Either (String, RunningSM f l s e) (RunningSM f l s e))
+
+extractResult :: RunSMResult f l s e -> Error ReturnValue
 extractResult (Left s) = Left s
 extractResult (Right (Left (s, _))) = Left s
-extractResult (Right (Right rsm)) = Right $ returnValue rsm
+extractResult (Right (Right rsm)) = return $ returnValue rsm
 
-extractErrorAndMachine :: Error (Either (String, RunningSM f l s e) (RunningSM f l s e)) -> Error (String, RunningSM f l s e)
+extractErrorAndMachine :: RunSMResult f l s e -> Error (String, RunningSM f l s e)
 extractErrorAndMachine (Left s) = Left s
-extractErrorAndMachine (Right (Left r)) = Right r
-extractErrorAndMachine (Right (Right r)) = Right ("successful run", r)
+extractErrorAndMachine (Right (Left r)) = return r
+extractErrorAndMachine (Right (Right r)) = return ("successful run", r)

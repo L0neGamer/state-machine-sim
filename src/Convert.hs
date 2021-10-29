@@ -1,10 +1,16 @@
-module Convert where
+module Convert (convertDFAToNFA) where
 
--- import Lib
--- import DFA (DFAStateMachine, acceptStates, language, startState, states, transitions)
--- import qualified Data.Map as M
--- import qualified Data.Set as S
--- import NFA (NFAStateMachine (NFAStatMac), NFATransitionType (Val))
+import DFA (DFA)
+import qualified Data.Bifunctor
+import Data.Map as M (map, mapKeys)
+import Data.Set as S (map, singleton)
+import Lib (Error, Single (Single))
+import NFA (NFA, NFAData (Val))
+import StateMachine (StateMachine (StateMachine, acceptStateIDs, addOutput, language, name, namesToNumbers, startStateID, transitions))
 
--- convertDFAToNFA :: (Ord a) => DFAStateMachine a -> NFAStateMachine a
--- convertDFAToNFA dfa = NFAStatMac (states dfa) (S.map Val (language dfa)) (M.map (M.map S.singleton . M.mapKeys Val) (transitions dfa)) (startState dfa) (acceptStates dfa)
+-- | @convertDFAToNFA@ converts the given DFA into an NFA of the same type
+convertDFAToNFA :: (Ord a) => DFA a -> Error (NFA a)
+convertDFAToNFA StateMachine {..} = return $ StateMachine ("NFA of `" ++ name ++ "`") (S.map Val language) transitions' startStateID acceptStateIDs addOutput namesToNumbers
+  where
+    conv (Single s) = S.singleton s
+    transitions' = fmap (M.map (Data.Bifunctor.first conv) . M.mapKeys Val) transitions

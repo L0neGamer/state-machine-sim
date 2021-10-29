@@ -3,7 +3,7 @@ module TuringMachine where
 import Data.Foldable (Foldable (toList))
 import Data.Set as S (member)
 import Lib (Error, Peekable (..), Single (..), fromJust)
-import RunStateMachine (Clock, ReturnValue (Running, Term), RunningSM (..), constructRunningSM, runSM)
+import RunStateMachine (Clock, ReturnValue (Running, Term), RunSMResult, RunningSM (..), constructRunningSM, runSM)
 import StateMachine (StateMachine (StateMachine, acceptStateIDs), Transition, runStep)
 
 data TapeDir
@@ -17,6 +17,8 @@ type TuringMachine a = StateMachine a Single (a, TapeDir)
 type TuringMachineTransition a = Transition a (a, TapeDir)
 
 type RunTuringMachine a = RunningSM Tape a Single (a, TapeDir)
+
+type RunTuringMachineResult a = RunSMResult Tape a Single (a, TapeDir)
 
 data Stream a = Stream a (Stream a)
 
@@ -45,7 +47,7 @@ instance Functor Tape where
   fmap f (Tape r l i) = Tape (fmap f r) (fmap f l) i
 
 instance Peekable Tape where
-  peek (Tape (Stream a _) _ _) = Right a
+  peek (Tape (Stream a _) _ _) = return a
   swapFirst a (Tape (Stream _ as) bs i) = Tape (Stream a as) bs i
 
 nullStream :: Stream ()
@@ -66,10 +68,10 @@ moveCursor R Tape {..} = Tape r l (cursor + 1)
     (r, l) = right `moveHeadTo` left
 moveCursor S t = t
 
-runTuringMachine :: (Ord a) => Tape a -> Clock -> TuringMachine a -> Error (Either (String, RunTuringMachine a) (RunTuringMachine a))
+runTuringMachine :: (Ord a) => Tape a -> Clock -> TuringMachine a -> RunTuringMachineResult a
 runTuringMachine tape' clk dfa = do
   rtm <- getRunTuringMachine tape' clk dfa
-  Right $ runSM rtm
+  return $ runSM rtm
 
 getRunTuringMachine :: (Ord a) => Tape a -> Clock -> TuringMachine a -> Error (RunTuringMachine a)
 getRunTuringMachine tape' clk turingMachine = constructRunningSM tape' clk turingMachine modifyTape' stepFunc haltingFunc

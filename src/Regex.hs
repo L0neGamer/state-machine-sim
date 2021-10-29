@@ -1,4 +1,4 @@
-module Regex where
+module Regex (checkString, regexStrToNFA) where
 
 -- thanks to this page for help in this file: http://matt.might.net/articles/parsing-regex-with-recursive-descent/
 
@@ -7,8 +7,6 @@ import Lib (Error)
 import NFA (NFA, NFAData (Epsilon, Val), NFATransition, runNFA)
 import RunStateMachine (ReturnValue, clock, extractResult)
 import StateMachine (State (State), inferStateMachine, tupleToSimpleTransition)
-
-type Err = String
 
 data RegexToken
   = LParen
@@ -56,42 +54,49 @@ toTokens [] = []
 toTokens ('\\' : x : xs) = Chr x : toTokens xs
 toTokens (x : xs) = charToToken x : toTokens xs
 
-parseRegex :: TokenStream -> (TokenStream, Regex)
-parseRegex toks
-  | checkNext toks' Alternation = (toks'', RegexAlternation term regex)
-  | otherwise = (toks', RegexSingle term)
-  where
-    (toks', term) = parseTerm toks
-    (toks'', regex) = parseRegex (tail toks')
+parseRegex :: TokenStream -> Error (TokenStream, Regex)
+parseRegex toks = do
+  (toks', term) <- parseTerm toks
+  if checkNext toks' Alternation
+    then
+      ( do
+          (toks'', regex) <- parseRegex (tail toks')
+          return (toks'', RegexAlternation term regex)
+      )
+    else return (toks', RegexSingle term)
 
-parseTerm :: TokenStream -> (TokenStream, Term)
-parseTerm [] = ([], TermNil)
-parseTerm toks@(tok : _)
-  | tok `isIn` baseChecks = (toks'', TermFact fact fact')
-  | otherwise = (toks, TermNil)
+parseTerm :: TokenStream -> Error (TokenStream, Term)
+parseTerm [] = return ([], TermNil)
+parseTerm toks@(tok : _) = do
+  if tok `isIn` baseChecks
+    then
+      ( do
+          (toks', fact) <- parseFactor toks
+          (toks'', fact') <- parseTerm toks'
+          return (toks'', TermFact fact fact')
+      )
+    else return (toks, TermNil)
   where
     baseChecks = [isChr, (== LParen)]
-    (toks', fact) = parseFactor toks
-    (toks'', fact') = parseTerm toks'
 
-parseFactor :: TokenStream -> (TokenStream, Factor)
-parseFactor toks = (toks'', fact)
-  where
-    (toks', base) = parseBase toks
-    (toks'', fact) = parseFactor' toks' (FactorSingle base)
+parseFactor :: TokenStream -> Error (TokenStream, Factor)
+parseFactor toks = do
+  (toks', base) <- parseBase toks
+  (toks'', fact) <- parseFactor' toks' (FactorSingle base)
+  return (toks'', fact)
 
-parseFactor' :: TokenStream -> Factor -> (TokenStream, Factor)
+parseFactor' :: TokenStream -> Factor -> Error (TokenStream, Factor)
 parseFactor' (KleeneStar : toks) fact = parseFactor' toks (FactorStar fact)
-parseFactor' toks fact = (toks, fact)
+parseFactor' toks fact = return (toks, fact)
 
-parseBase :: TokenStream -> (TokenStream, Base)
-parseBase (Chr c : toks) = (toks, BaseChar c)
-parseBase (LParen : toks)
-  | checkNext toks' RParen = (tail toks', BaseGroup regex)
-  | otherwise = error $ "regex parentheses could not be parsed:\n\t" ++ show (LParen : toks)
-  where
-    (toks', regex) = parseRegex toks
-parseBase t = error $ "unexpected non-base token:" ++ show t
+parseBase :: TokenStream -> Error (TokenStream, Base)
+parseBase (Chr c : toks) = return (toks, BaseChar c)
+parseBase (LParen : toks) = do
+  (toks', regex) <- parseRegex toks
+  if checkNext toks' RParen
+    then return (tail toks', BaseGroup regex)
+    else Left $ "regex parentheses could not be parsed:\n\t" ++ show (LParen : toks)
+parseBase t = Left $ "unexpected non-base token:" ++ show t
 
 checkNext :: TokenStream -> RegexToken -> Bool
 checkNext [] _ = False
@@ -100,12 +105,12 @@ checkNext (x : _) tok = x == tok
 isIn :: RegexToken -> [RegexToken -> Bool] -> Bool
 isIn tok = any ($ tok)
 
-strToParsedRegex :: String -> Regex
-strToParsedRegex str
-  | null toks = regex
-  | otherwise = error $ "regex was not parsed correctly:\n\tLeftover:" ++ show toks ++ "\n\tOriginal:" ++ show str
-  where
-    (toks, regex) = parseRegex . toTokens $ str
+strToParsedRegex :: String -> Error Regex
+strToParsedRegex str = do
+  (toks, regex) <- parseRegex . toTokens $ str
+  if null toks
+    then return regex
+    else Left $ "regex was not parsed correctly. Leftover:" ++ show toks ++ " Original:" ++ show str
 
 stateFromInteger :: Integer -> State
 stateFromInteger = State . show
@@ -147,9 +152,10 @@ baseToNFA (BaseChar c) i = (i, i + 1, convertList [(i, i + 1, Val c)])
 baseToNFA (BaseGroup regex) s = regexToNFA regex s
 
 regexStrToNFA :: String -> Error (NFA Char)
-regexStrToNFA str = inferStateMachine ("regex NFA `" ++ str ++ "`") xs (stateFromInteger start) (S.singleton $ stateFromInteger end) const
-  where
-    (start, end, xs) = regexToNFA (strToParsedRegex str) 0
+regexStrToNFA str = do
+  regex <- strToParsedRegex str
+  let (start, end, xs) = regexToNFA regex 0
+  inferStateMachine ("regex NFA `" ++ str ++ "`") xs (stateFromInteger start) (S.singleton $ stateFromInteger end) const
 
 checkString :: String -> String -> Error ReturnValue
 checkString inpStr regex = do

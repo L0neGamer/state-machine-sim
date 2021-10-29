@@ -1,5 +1,24 @@
-module StateMachine where
+module StateMachine
+  ( StateLike (..),
+    Transition (..),
+    State (..),
+    StateID,
+    StateMachine (..),
+    updateName,
+    updateLanguage,
+    updateTransitions,
+    updateStartStateID,
+    updateAcceptStateIDs,
+    updateAddOutput,
+    updateNamesToNumbers,
+    runStep,
+    tupleToSimpleTransition,
+    inferStateMachine,
+    constructStateMachine,
+  )
+where
 
+import Control.Monad (when)
 import Data.Bifunctor (Bifunctor (bimap))
 import Data.Map as M (Map, empty, fromList, insert, lookup, member, (!))
 import Data.Set as S (Set, delete, empty, fromList, insert, notMember, singleton, size, toAscList, toList)
@@ -7,9 +26,8 @@ import Data.Vector as V (Vector, replicate, (!?))
 import Lib
   ( Error,
     Single (..),
-    lookupEither,
-    lookupError,
-    maybeToError,
+    lookupEither',
+    maybeToEither,
     updateVector,
   )
 
@@ -19,16 +37,6 @@ data State
   = Dead
   | State String
   deriving (Show, Eq, Ord)
-
-numberStates :: [State]
-numberStates = fmap (State . show) ([0 ..] :: [Int])
-
-q0, q1, q2, q3, q4, q5 :: State
-q0 : q1 : q2 : q3 : q4 : q5 : _ = numberStates
-
-getState :: State -> Error String
-getState Dead = Left "Tried to unwrap Dead State"
-getState (State s) = Right s
 
 class StateLike s where
   fromStateID :: StateID -> s StateID
@@ -70,8 +78,8 @@ updateAcceptStateIDs acceptStateIDs' StateMachine {..} = StateMachine name langu
 updateAddOutput :: (e -> e -> e) -> StateMachine l s e -> StateMachine l s e
 updateAddOutput addOutput' StateMachine {..} = StateMachine name language transitions startStateID acceptStateIDs addOutput' namesToNumbers
 
-updatenamesToNumbers :: Map State StateID -> StateMachine l s e -> StateMachine l s e
-updatenamesToNumbers namesToNumbers' StateMachine {..} = StateMachine name language transitions startStateID acceptStateIDs addOutput namesToNumbers'
+updateNamesToNumbers :: Map State StateID -> StateMachine l s e -> StateMachine l s e
+updateNamesToNumbers namesToNumbers' StateMachine {..} = StateMachine name language transitions startStateID acceptStateIDs addOutput namesToNumbers'
 
 instance (Show l, Show (s StateID), Show e, StateLike s) => Show (StateMachine l s e) where
   show sm =
@@ -94,14 +102,8 @@ data Transition a b = Transition
   }
   deriving (Show, Eq)
 
-simpleTransition :: State -> State -> a -> Transition a ()
-simpleTransition s s' a = Transition s s' a ()
-
-tupleToTransition :: (State, State, a, b) -> Transition a b
-tupleToTransition (s, s', a, b) = Transition s s' a b
-
 tupleToSimpleTransition :: (State, State, a) -> Transition a ()
-tupleToSimpleTransition (s, s', a) = simpleTransition s s' a
+tupleToSimpleTransition (s, s', a) = Transition s s' a ()
 
 getStatesAndLang :: (Ord a) => [Transition a b] -> (Set State, Set a)
 getStatesAndLang = Prelude.foldr combine (S.empty, S.empty)
@@ -111,48 +113,39 @@ getStatesAndLang = Prelude.foldr combine (S.empty, S.empty)
 runStep :: (Ord l, (StateLike s)) => StateMachine l s e -> StateID -> l -> Error (s StateID, Maybe e)
 runStep sm sid l
   | sid >= 0 = do
-    m <- maybeToError "Could not find state (runStep)" (t !? sid)
+    m <- maybeToEither "Could not find state (runStep)" (t !? sid)
     interpretNothing $ M.lookup l m
   | otherwise = interpretNothing Nothing
   where
     t = transitions sm
-    interpretNothing Nothing = Right (fromStateID (-1), Nothing)
-    interpretNothing (Just (s, e)) = Right (s, Just e)
-
-mapStates :: Map State StateID -> [Transition a b] -> ([(StateID, StateID, a, b)], [State])
-mapStates m = foldr (combiner . mpFunc) ([], [])
-  where
-    mpFunc Transition {..} = do
-      ss <- lookupEither startStateT m
-      es <- lookupEither endStateT m
-      return (ss, es, characterT, outputT)
-    combiner (Left b) (ls, bs) = (ls, b : bs)
-    combiner (Right l) (ls, bs) = (l : ls, bs)
+    interpretNothing Nothing = return (fromStateID (-1), Nothing)
+    interpretNothing (Just (s, e)) = return (s, Just e)
 
 addTransition :: (StateLike s, Ord l) => Transition l e -> StateMachine l s e -> Error (StateMachine l s e)
 addTransition Transition {..} sm@StateMachine {..} = do
   (ss, es, l, e) <- do
-    ss <- lookupError ("Could not locate startStateT " ++ show startStateT ++ " (addTransition)") startStateT namesToNumbers
-    es <- lookupError ("Could not locate endStateT " ++ show endStateT ++ " (addTransition)") endStateT namesToNumbers
+    ss <- lookupEither' ("Could not locate startStateT " ++ show startStateT ++ " (addTransition)") startStateT namesToNumbers
+    es <- lookupEither' ("Could not locate endStateT " ++ show endStateT ++ " (addTransition)") endStateT namesToNumbers
     return (ss, es, characterT, outputT)
-  _ <- if l `S.notMember` language then Left "Character not in language" else Right ()
-  m <- maybeToError "Could not find start state (addTransition)" $ transitions !? ss
+  when (l `S.notMember` language) $ Left "Character not in language"
+  m <- maybeToEither "Could not find start state (addTransition)" $ transitions !? ss
   let combined
         | l `M.member` m = bimap (combineStates es) (addOutput e) (m M.! l)
         | otherwise = (fromStateID es, e)
-  v <- maybeToError "Could not update vector (addTransition)" $ updateVector ss (M.insert l combined m) transitions
-  Right $ updateTransitions v sm
+  v <- maybeToEither "Could not update vector (addTransition)" $ updateVector ss (M.insert l combined m) transitions
+  return $ updateTransitions v sm
 
 addTransitions :: (StateLike s, Ord l) => [Transition l e] -> StateMachine l s e -> Error (StateMachine l s e)
-addTransitions ts sm = foldr foldFunc (Right sm) ts
+addTransitions ts sm = foldr foldFunc (return sm) ts
   where
     foldFunc _ (Left s) = Left s
     foldFunc t (Right statemachine) = addTransition t statemachine
 
+-- | @constructStateMachine@ takes the machine name, the language, all the states in the machine, all the transitions between states using the language producing side effects of type e, the start state, the accept states, a way to combine side effects, and will return either an error from the construction of the state machine or return a state machine
 constructStateMachine :: (Ord l, StateLike s) => String -> Set l -> Set State -> [Transition l e] -> State -> Set State -> (e -> e -> e) -> Error (StateMachine l s e)
 constructStateMachine name' language' states' transitions' startState' acceptStates' addOutput' = do
-  acceptStatesList <- mapM (\s -> lookupError ("Could not find accept state " ++ show s) s namesToNumbers') (S.toList (S.delete Dead acceptStates'))
-  startStateID' <- lookupError ("Could not find start state " ++ show startState') startState' namesToNumbers'
+  acceptStatesList <- mapM (\s -> lookupEither' ("Could not find accept state " ++ show s) s namesToNumbers') (S.toList (S.delete Dead acceptStates'))
+  startStateID' <- lookupEither' ("Could not find start state " ++ show startState') startState' namesToNumbers'
   let smASI = updateAcceptStateIDs (S.fromList acceptStatesList) sm
       smSSID = updateStartStateID startStateID' smASI
   addTransitions transitions' smSSID
