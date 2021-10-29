@@ -1,4 +1,4 @@
-module StateMachineSim.StateMachines.NFA
+module Data.StateMachines.NFA
   ( NFATransition,
     NFA,
     RunNFA,
@@ -19,8 +19,8 @@ import Data.Set as S
     unions,
   )
 import Data.Vector ((!?))
-import StateMachineSim.Lib.Lib (Error, dropNothings)
-import StateMachineSim.Lib.RunStateMachine
+import Data.StateMachines.Internal (Error, dropNothings)
+import Data.StateMachines.RunStateMachine
   ( Clock,
     ReturnValue (Running, Term),
     RunSMResult,
@@ -29,7 +29,7 @@ import StateMachineSim.Lib.RunStateMachine
     runSM,
     updateCurrentState,
   )
-import StateMachineSim.Lib.StateMachine (StateID, StateMachine (..), Transition, runStep)
+import Data.StateMachines.StateMachine (StateID, StateMachine (..), Transition, runStep)
 
 -- | @NFAData@ is a data type meant to ease the use of NFAs
 data NFAData a = Epsilon | Val a deriving (Show, Eq, Ord)

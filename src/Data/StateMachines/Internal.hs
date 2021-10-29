@@ -1,4 +1,4 @@
-module StateMachineSim.Lib.Lib
+module Data.StateMachines.Internal
   ( Error,
     lookupEither,
     lookupEither',

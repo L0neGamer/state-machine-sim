@@ -1,13 +1,13 @@
-module StateMachineSim.StateMachines.Regex (checkString, regexStrToNFA) where
+module Data.StateMachines.Regex (checkString, regexStrToNFA) where
 
 -- thanks to this page for help in this file:
 -- http://matt.might.net/articles/parsing-regex-with-recursive-descent/
 
 import Data.Set as S (singleton)
-import StateMachineSim.Lib.Lib (Error)
-import StateMachineSim.Lib.RunStateMachine (ReturnValue, clock, extractResult)
-import StateMachineSim.Lib.StateMachine (State (State), inferStateMachine, tupleToSimpleTransition)
-import StateMachineSim.StateMachines.NFA (NFA, NFAData (Epsilon, Val), NFATransition, runNFA)
+import Data.StateMachines.Internal (Error)
+import Data.StateMachines.RunStateMachine (ReturnValue, clock, extractResult)
+import Data.StateMachines.StateMachine (State (State), inferStateMachine, tupleToSimpleTransition)
+import Data.StateMachines.NFA (NFA, NFAData (Epsilon, Val), NFATransition, runNFA)
 
 -- | @RegexToken@ represents all the tokens that can be expected from an input string
 data RegexToken

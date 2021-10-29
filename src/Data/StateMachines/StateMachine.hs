@@ -1,4 +1,4 @@
-module StateMachineSim.Lib.StateMachine
+module Data.StateMachines.StateMachine
   ( StateLike (..),
     Transition (..),
     State (..),
@@ -49,7 +49,7 @@ import Data.Set as S
     union,
   )
 import Data.Vector as V (Vector, replicate, (!?), (//))
-import StateMachineSim.Lib.Lib
+import Data.StateMachines.Internal
   ( Error,
     lookupEither',
     updateVector,
