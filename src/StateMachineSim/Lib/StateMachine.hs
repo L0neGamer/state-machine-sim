@@ -21,6 +21,8 @@ where
 
 import Control.Monad (when)
 import Data.Bifunctor (Bifunctor (bimap))
+import Data.Either.Extra (maybeToEither)
+import Data.Functor.Identity (Identity (Identity))
 import Data.Map as M
   ( Map,
     alter,
@@ -49,9 +51,7 @@ import Data.Set as S
 import Data.Vector as V (Vector, replicate, (!?), (//))
 import StateMachineSim.Lib.Lib
   ( Error,
-    Single (..),
     lookupEither',
-    maybeToEither,
     updateVector,
   )
 
@@ -84,15 +84,19 @@ class StateLike s where
   -- | How to combine two @StateLike@ @s@s
   combineStateLike :: s StateID -> s StateID -> s StateID
 
+  toSet :: s a -> Set a
+
 instance StateLike Set where
   fromStateID = singleton
   combineStates s ss = S.insert s ss
   combineStateLike = S.union
+  toSet = id
 
-instance StateLike Single where
-  fromStateID = Single
-  combineStates s _ = Single s
+instance StateLike Identity where
+  fromStateID = Identity
+  combineStates s _ = Identity s
   combineStateLike = const
+  toSet (Identity s) = S.singleton s
 
 -- | @StateMachine@ is the data type that contains a state machine as well as some
 -- information about it

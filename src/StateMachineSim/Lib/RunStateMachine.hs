@@ -3,6 +3,7 @@ module StateMachineSim.Lib.RunStateMachine
     ReturnValue (Running, Term),
     RunSMResult,
     RunningSM (..),
+    Peekable (..),
     updateTape,
     updateCurrentState,
     updateReturnValue,
@@ -19,7 +20,7 @@ module StateMachineSim.Lib.RunStateMachine
   )
 where
 
-import StateMachineSim.Lib.Lib (Error, Peekable (..))
+import StateMachineSim.Lib.Lib (Error)
 import StateMachineSim.Lib.StateMachine (StateID, StateLike (fromStateID), StateMachine (startStateID))
 
 -- | @Clock@ is a data type that stores a timer ticking upwards, either unbounded or
@@ -42,6 +43,14 @@ clock i
   | i > 0 = Clock 0 (Bound i)
   | otherwise = Clock 0 Unbounded
 
+-- | @ReturnValue@ represents either that a machine is running or that it has terminated
+data ReturnValue = Running | Term Bool deriving (Eq, Show)
+
+-- | @isTerm@ says whether a given value is a terminal value or not
+isTerm :: ReturnValue -> Bool
+isTerm (Term _) = True
+isTerm _ = False
+
 -- | @returnValueCheckClock@ either errors if the clock has run out of time or returns the
 -- input @ReturnValue@
 returnValueCheckClock :: ReturnValue -> Clock -> Error ReturnValue
@@ -50,13 +59,22 @@ returnValueCheckClock r (Clock i (Bound j))
   | otherwise = return r
 returnValueCheckClock r _ = return r
 
--- | @ReturnValue@ represents either that a machine is running or that it has terminated
-data ReturnValue = Running | Term Bool deriving (Eq, Show)
+-- | @Peekable@ is a type class which designates whether a container type can be peeked
+-- into, as well as swapping the first value.
+--
+-- @peek (swapFirst a as) == peek as >> return a@
+class Peekable a where
+  -- | @peek@ gets the first item in the type, and errors otherwise
+  peek :: a b -> Error b
 
--- | @isTerm@ says whether a given value is a terminal value or not
-isTerm :: ReturnValue -> Bool
-isTerm (Term _) = True
-isTerm _ = False
+  -- | @swapFirst@ swaps the first item in the type for the given value
+  swapFirst :: b -> a b -> a b
+
+instance Peekable [] where
+  peek [] = Left "Empty List when peeking"
+  peek (x : _) = return x
+  swapFirst _ [] = []
+  swapFirst a (_ : as) = a : as
 
 -- | @StepFunction@ is a type alias for a function that gets the next states and extra
 -- output

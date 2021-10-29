@@ -14,10 +14,11 @@ module StateMachineSim.StateMachines.TuringMachine
 where
 
 import Data.Foldable (Foldable (toList))
+import Data.Functor.Identity (Identity (Identity))
 import Data.List (genericTake)
 import Data.Set as S (member)
-import StateMachineSim.Lib.Lib (Peekable (..), Single (..), fromJust)
-import StateMachineSim.Lib.RunStateMachine (Clock, ReturnValue (Running, Term), RunSMResult, RunningSM (..), constructRunningSM, runSM)
+import Safe (fromJustDef)
+import StateMachineSim.Lib.RunStateMachine (Clock, Peekable (..), ReturnValue (Running, Term), RunSMResult, RunningSM (..), constructRunningSM, runSM)
 import StateMachineSim.Lib.StateMachine (StateMachine (StateMachine, acceptStateIDs), Transition, runStep)
 
 -- | @TapeDir@ is a data type that determines which direction the tape should move
@@ -28,7 +29,7 @@ data TapeDir
   deriving (Show, Eq)
 
 -- | @TuringMachine@ is a type alias that represents the default type for Turing machines
-type TuringMachine a = StateMachine a Single (a, TapeDir)
+type TuringMachine a = StateMachine a Identity (a, TapeDir)
 
 -- | @TuringMachineTransition@ is a type alias that represents the default type for Turing
 -- machine transitions
@@ -36,11 +37,11 @@ type TuringMachineTransition a = Transition a (a, TapeDir)
 
 -- | @RunTuringMachine@ is a type alias that represents the default type for running
 -- Turing machines
-type RunTuringMachine a = RunningSM Tape a Single (a, TapeDir)
+type RunTuringMachine a = RunningSM Tape a Identity (a, TapeDir)
 
 -- | @RunTuringMachineResult@ is a type alias that represents the default type for the
 -- result of running a Turing machine
-type RunTuringMachineResult a = RunSMResult Tape a Single (a, TapeDir)
+type RunTuringMachineResult a = RunSMResult Tape a Identity (a, TapeDir)
 
 -- | @Stream@ is an infinite data storage type. The @Show@ instance limits the output to
 -- 15 values by default
@@ -134,10 +135,10 @@ getRunTuringMachine :: (Ord a) => Tape a -> Clock -> TuringMachine a -> RunTurin
 getRunTuringMachine tape' clk turingMachine = constructRunningSM tape' clk turingMachine modifyTape' stepFunc haltingFunc
   where
     modifyTape' (a, tapeDir) t = moveCursor tapeDir (swapFirst a t)
-    stepFunc (Single s) l RunSM {..} = do
+    stepFunc (Identity s) l RunSM {..} = do
       (s', e') <- runStep stateMachine s l
-      return (s', fromJust (l, S) e')
-    haltingFunc (Single s) _ _ StateMachine {..}
+      return (s', fromJustDef (l, S) e')
+    haltingFunc (Identity s) _ _ StateMachine {..}
       | s `S.member` acceptStateIDs = Term True
       | s >= 0 = Running
       | otherwise = Term False

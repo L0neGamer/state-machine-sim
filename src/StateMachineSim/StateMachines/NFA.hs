@@ -7,6 +7,7 @@ module StateMachineSim.StateMachines.NFA
   )
 where
 
+import Data.Either.Extra (maybeToEither)
 import Data.Map as M (lookup)
 import Data.Set as S
   ( Set,
@@ -18,7 +19,7 @@ import Data.Set as S
     unions,
   )
 import Data.Vector ((!?))
-import StateMachineSim.Lib.Lib (Error, dropNothings, maybeToEither)
+import StateMachineSim.Lib.Lib (Error, dropNothings)
 import StateMachineSim.Lib.RunStateMachine
   ( Clock,
     ReturnValue (Running, Term),

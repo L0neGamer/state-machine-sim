@@ -7,8 +7,8 @@ module StateMachineSim.StateMachines.DFA
   )
 where
 
+import Data.Functor.Identity (Identity (Identity))
 import Data.Set as S (member)
-import StateMachineSim.Lib.Lib (Single (..))
 import StateMachineSim.Lib.RunStateMachine
   ( Clock,
     ReturnValue (Running, Term),
@@ -20,17 +20,17 @@ import StateMachineSim.Lib.RunStateMachine
 import StateMachineSim.Lib.StateMachine (StateMachine (..), Transition, runStep)
 
 -- | @DFA@ is a type alias that represents the default type for DFAs
-type DFA a = StateMachine a Single ()
+type DFA a = StateMachine a Identity ()
 
 -- | @DFATransition@ is a type alias that represents the default type for DFA transitions
 type DFATransition a = Transition a ()
 
 -- | @RunDFA@ is a type alias that represents the default type for running DFAs
-type RunDFA a = RunningSM [] a Single ()
+type RunDFA a = RunningSM [] a Identity ()
 
 -- | @RunDFAResult@ is a type alias that represents the default type for the result of
 -- running a DFA
-type RunDFAResult a = RunSMResult [] a Single ()
+type RunDFAResult a = RunSMResult [] a Identity ()
 
 -- | @runDFA@ takes an input list of type @a@, a Clock, and a DFA with language @a@, and
 -- returns the result of running that.
@@ -50,10 +50,10 @@ getRunDFA tape' clk dfa =
     stepFunc
     haltingFunc
   where
-    stepFunc (Single s) l RunSM {..} = do
+    stepFunc (Identity s) l RunSM {..} = do
       (s', _) <- runStep stateMachine s l
       return (s', ())
-    haltingFunc (Single s) _ as StateMachine {..}
+    haltingFunc (Identity s) _ as StateMachine {..}
       | null as && s >= 0 = Term $ s `S.member` acceptStateIDs
       | s >= 0 = Running
       | otherwise = Term False

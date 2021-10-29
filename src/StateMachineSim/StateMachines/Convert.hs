@@ -2,10 +2,11 @@ module StateMachineSim.StateMachines.Convert (convertDFAToNFA) where
 
 import qualified Data.Bifunctor
 import Data.Map as M (map, mapKeys)
-import Data.Set as S (map, singleton)
-import StateMachineSim.Lib.Lib (Error, Single (Single))
+import Data.Set as S (map)
+import StateMachineSim.Lib.Lib (Error)
 import StateMachineSim.Lib.StateMachine
-  ( StateMachine
+  ( StateLike (toSet),
+    StateMachine
       ( StateMachine,
         acceptStateIDs,
         addOutput,
@@ -32,5 +33,4 @@ convertDFAToNFA StateMachine {..} =
       addOutput
       namesToNumbers
   where
-    conv (Single s) = S.singleton s
-    transitions' = fmap (M.map (Data.Bifunctor.first conv) . M.mapKeys Val) transitions
+    transitions' = fmap (M.map (Data.Bifunctor.first toSet) . M.mapKeys Val) transitions
