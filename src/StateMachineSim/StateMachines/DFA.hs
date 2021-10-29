@@ -17,7 +17,7 @@ import StateMachineSim.Lib.RunStateMachine
     constructRunningSM,
     runSM,
   )
-import StateMachineSim.Lib.StateMachine(StateMachine (..), Transition, runStep)
+import StateMachineSim.Lib.StateMachine (StateMachine (..), Transition, runStep)
 
 -- | @DFA@ is a type alias that represents the default type for DFAs
 type DFA a = StateMachine a Single ()

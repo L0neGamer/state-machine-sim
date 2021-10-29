@@ -1,11 +1,9 @@
 module StateMachineSim.StateMachines.Convert (convertDFAToNFA) where
 
-import StateMachineSim.StateMachines.DFA (DFA)
 import qualified Data.Bifunctor
 import Data.Map as M (map, mapKeys)
 import Data.Set as S (map, singleton)
 import StateMachineSim.Lib.Lib (Error, Single (Single))
-import StateMachineSim.StateMachines.NFA (NFA, NFAData (Val))
 import StateMachineSim.Lib.StateMachine
   ( StateMachine
       ( StateMachine,
@@ -18,6 +16,8 @@ import StateMachineSim.Lib.StateMachine
         transitions
       ),
   )
+import StateMachineSim.StateMachines.DFA (DFA)
+import StateMachineSim.StateMachines.NFA (NFA, NFAData (Val))
 
 -- | @convertDFAToNFA@ converts the given DFA into an NFA of the same type
 convertDFAToNFA :: (Ord a) => DFA a -> Error (NFA a)

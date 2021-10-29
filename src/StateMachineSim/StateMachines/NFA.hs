@@ -1,5 +1,11 @@
-module StateMachineSim.StateMachines.NFA (NFATransition,
- NFA, RunNFA, runNFA, NFAData (..)) where
+module StateMachineSim.StateMachines.NFA
+  ( NFATransition,
+    NFA,
+    RunNFA,
+    runNFA,
+    NFAData (..),
+  )
+where
 
 import Data.Map as M (lookup)
 import Data.Set as S
@@ -22,7 +28,7 @@ import StateMachineSim.Lib.RunStateMachine
     runSM,
     updateCurrentState,
   )
-import StateMachineSim.Lib.StateMachine(StateID, StateMachine (..), Transition, runStep)
+import StateMachineSim.Lib.StateMachine (StateID, StateMachine (..), Transition, runStep)
 
 -- | @NFAData@ is a data type meant to ease the use of NFAs
 data NFAData a = Epsilon | Val a deriving (Show, Eq, Ord)

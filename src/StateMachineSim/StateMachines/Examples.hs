@@ -9,7 +9,6 @@ module StateMachineSim.StateMachines.Examples
   )
 where
 
-import StateMachineSim.StateMachines.DFA (DFA, RunDFAResult, runDFA)
 import Data.Foldable (Foldable (toList))
 import Data.Set as S (empty, singleton)
 import GHC.OldList (genericTake)
@@ -27,6 +26,7 @@ import StateMachineSim.Lib.StateMachine
     inferStateMachine,
     tupleToSimpleTransition,
   )
+import StateMachineSim.StateMachines.DFA (DFA, RunDFAResult, runDFA)
 import StateMachineSim.StateMachines.TuringMachine
   ( RunTuringMachine,
     Tape (cursor, left, right),
