@@ -1,15 +1,24 @@
+-- |
+-- Module      :  Data.StateMachines.TuringMachine
+-- License     :  BSD3
+--
+-- Maintainer  :  L0neGamer
+-- Stability   :  experimental
+--
+-- Functions and types for constructing and running Turing machines. Includes new data
+-- types such as `Tapes` for guaranteed infinite inputs.
 module Data.StateMachines.TuringMachine
-  ( TuringMachine,
+  ( TapeDir (L, R),
+    Tape (..),
+    blankTape,
+    fromListTape,
     TuringMachineTransition,
+    TuringMachine,
     RunTuringMachine,
     RunTuringMachineResult,
-    TapeDir (L, R),
-    Tape (..),
-    Stream (..),
     runTuringMachine,
-    blankTape,
+    Stream (..),
     fromListStream,
-    fromListTape,
   )
 where
 
@@ -21,30 +30,30 @@ import Data.StateMachines.RunStateMachine (Clock, Peekable (..), ReturnValue (Ru
 import Data.StateMachines.StateMachine (StateMachine (StateMachine, acceptStateIDs), Transition, runStep)
 import Safe (fromJustDef)
 
--- | @TapeDir@ is a data type that determines which direction the tape should move
+-- | A data type that determines which direction the tape should move.
 data TapeDir
   = L
   | S
   | R
   deriving (Show, Eq)
 
--- | @TuringMachine@ is a type alias that represents the default type for Turing machines
+-- | A type alias that represents the default type for Turing machines.
 type TuringMachine a = StateMachine a Identity (a, TapeDir)
 
--- | @TuringMachineTransition@ is a type alias that represents the default type for Turing
--- machine transitions
+-- | A type alias that represents the default type for Turing
+-- machine transitions.
 type TuringMachineTransition a = Transition a (a, TapeDir)
 
--- | @RunTuringMachine@ is a type alias that represents the default type for running
--- Turing machines
+-- | A type alias that represents the default type for running
+-- Turing machines.
 type RunTuringMachine a = RunningSM Tape a Identity (a, TapeDir)
 
--- | @RunTuringMachineResult@ is a type alias that represents the default type for the
--- result of running a Turing machine
+-- | A type alias that represents the default type for the
+-- result of running a Turing machine.
 type RunTuringMachineResult a = RunSMResult Tape a Identity (a, TapeDir)
 
--- | @Stream@ is an infinite data storage type. The @Show@ instance limits the output to
--- 15 values by default
+-- | An infinite data storage type. The `Show` instance limits the output to
+-- 15 values by default.
 data Stream a = Stream a (Stream a)
 
 instance Functor Stream where
@@ -58,16 +67,16 @@ instance (Show a) => Show (Stream a) where
     where
       showStreamLimit = 15 :: Int
 
--- | @fromListStream@ takes a default value of type @a@, a list of @a@s, and returns a
--- @Stream@ prepended with the values in the list before having an infinite stream of the
--- default @a@s
+-- | Takes a default value of type @a@, a list of @a@s, and returns a
+-- `Stream` prepended with the values in the list before having an infinite stream of the
+-- default @a@s.
 fromListStream :: a -> [a] -> Stream a
 fromListStream a [] = st
   where
     st = Stream a st
 fromListStream a (a' : as) = Stream a' (fromListStream a as)
 
--- | @showStream@ returns a string representing the given @Stream@ up to a given depth
+-- | Returns a string representing the given `Stream` up to a given depth.
 showStream :: (Show a, Integral i) => i -> Stream a -> String
 showStream i st@(Stream a _) = "fromListStream (" ++ show infVal ++ ") " ++ show lst
   where
@@ -76,15 +85,16 @@ showStream i st@(Stream a _) = "fromListStream (" ++ show infVal ++ ") " ++ show
       | i <= 0 = a
       | otherwise = last lst
 
+-- | A `Stream` of unit (`()`) values.
 nullStream :: Stream ()
 nullStream = Stream () nullStream
 
+-- | Move the head of the first `Stream` to that of the other.
 moveHeadTo :: Stream a -> Stream a -> (Stream a, Stream a)
 moveHeadTo (Stream a as) bs = (as, Stream a bs)
 
--- | @Tape@ is the data type that represents an infinite tape going off to the left and
--- right, with a @cursor@ designating how far the tape currently is from the start
--- location
+-- | The data type that represents an infinite tape going off to the `left` and `right`,
+-- with a `cursor` designating how far the tape currently is from the start location.
 data Tape a = Tape
   { right :: Stream a,
     left :: Stream a,
@@ -92,7 +102,7 @@ data Tape a = Tape
   }
 
 instance (Show a) => Show (Tape a) where
-  show (Tape r l c) = "Tape " ++ show r ++ " " ++ show l ++ " " ++ show c
+  show (Tape r l c) = "Tape (" ++ show r ++ ") (" ++ show l ++ ") " ++ show c
 
 instance Functor Tape where
   fmap f (Tape r l i) = Tape (fmap f r) (fmap f l) i
@@ -101,18 +111,17 @@ instance Peekable Tape where
   peek (Tape (Stream a _) _ _) = return a
   swapFirst a (Tape (Stream _ as) bs i) = Tape (Stream a as) bs i
 
--- | @blankTape@ constructs a @Tape@ that is entirely the given value
+-- | Constructs a `Tape` that is entirely the given value.
 blankTape :: a -> Tape a
 blankTape a = fmap (const a) (Tape nullStream nullStream 0)
 
--- | @fromListTape@ constructs a @Tape@ where the right side of the tape is prepended with
--- the given list, and the rest of both streams are the given value
+-- | Constructs a `Tape` where the right side of the tape is prepended with the given
+-- list, and the rest of both streams are the given value.
 fromListTape :: a -> [a] -> Tape a
 fromListTape a as = Tape (fromListStream a as) (fromListStream a []) 0
 
--- | @moveCursor@ moves the values within a tape such that when given a @TapeDir@, the
--- values in the @left@ and @right@ @Stream@s are moved, and the cursor is incremented or
--- decremented
+-- | Moves the values within a tape such that when given a `TapeDir`, the values in the
+-- `left` and `right` `Stream`s are moved, and the cursor is incremented or decremented.
 moveCursor :: TapeDir -> Tape a -> Tape a
 moveCursor L Tape {..} = Tape r l (cursor - 1)
   where
@@ -122,15 +131,17 @@ moveCursor R Tape {..} = Tape r l (cursor + 1)
     (r, l) = right `moveHeadTo` left
 moveCursor S t = t
 
--- | @runTuringMachine@ takes an input @Tape@ of type @a@, a Clock, and a Turing machine
--- with language @a@, and returns the result of running that.
--- Check @extractResult@ and @extractErrorAndMachine@ from @RunStateMachine@ to see how to
+-- | Takes an input `Tape` of type @a@, a `Clock`, and a `TuringMachine` with language
+-- @a@, and returns the result of running that.
+--
+-- Check `Data.StateMachines.RunStateMachine.extractResult` and
+-- `Data.StateMachines.RunStateMachine.extractErrorAndMachine` to see how to
 -- extract values from it.
 runTuringMachine :: (Ord a) => Tape a -> Clock -> TuringMachine a -> RunTuringMachineResult a
 runTuringMachine tape' clk dfa = runSM (getRunTuringMachine tape' clk dfa)
 
--- | @getRunTuringMachine@ constructs the @RunTuringMachine@ value for a given input,
--- clock, and @TuringMachine@
+-- | Constructs the `RunTuringMachine` value for a given input, clock, and
+-- `TuringMachine`.
 getRunTuringMachine :: (Ord a) => Tape a -> Clock -> TuringMachine a -> RunTuringMachine a
 getRunTuringMachine tape' clk turingMachine = constructRunningSM tape' clk turingMachine modifyTape' stepFunc haltingFunc
   where

@@ -1,15 +1,26 @@
+-- |
+-- Module      :  Data.StateMachines.Examples
+-- License     :  BSD3
+--
+-- Maintainer  :  L0neGamer
+-- Stability   :  experimental
+--
+-- Functions and state machines meant for demonstrating how to use various state machines.
+--
+-- Includes some DFAs and "Busy beaver" examples for Turing machines.
 module Data.StateMachines.Examples
-  ( busyBeaver3State,
+  ( emptyDFA,
+    exampleDFA,
+    runExampleDFA,
+    busyBeaver3State,
     busyBeaver4State,
     busyBeaver5State,
     busyBeaverCheck,
-    emptyDFA,
-    exampleDFA,
-    runExampleDFA,
   )
 where
 
 import Data.Foldable (Foldable (toList))
+import Data.List (genericTake)
 import Data.Set as S (empty, singleton)
 import Data.StateMachines.DFA (DFA, RunDFAResult, runDFA)
 import Data.StateMachines.Internal (Error)
@@ -35,19 +46,18 @@ import Data.StateMachines.TuringMachine
     blankTape,
     runTuringMachine,
   )
-import Data.List (genericTake)
 
--- | Basic states for use in examples
+-- | Basic states for use in examples.
 q0, q1, q2, q3, q4 :: State
 q0 : q1 : q2 : q3 : q4 : _ = fmap (State . show) ([0 ..] :: [Integer])
 
--- | @qH@ is a state earmarked for being the final state - but isn't special in any way
+-- | A state earmarked for being the final state, but has no unique properties.
 qH :: State
 qH = State "haltingState"
 
 --- DFA testing
 
--- | @exampleDFA@ is a DFA that accepts 101*0
+-- | A DFA that accepts @101*0@.
 exampleDFA :: Error (DFA Int)
 exampleDFA =
   inferStateMachine
@@ -64,27 +74,27 @@ exampleDFA =
     (S.singleton q3)
     const
 
--- | @runExampleDFA@ runs @exampleDFA@ on a given input, with a maximum clock time of 100
+-- | Runs `exampleDFA` on a given input, with a maximum clock time of 100.
 runExampleDFA :: [Int] -> Error (RunDFAResult Int)
 runExampleDFA inp = runDFA inp (clock 100) <$> exampleDFA
 
--- | @emptyDFA@ accepts nothing
-emptyDFA :: (Ord a) => Error (DFA a)
+-- | This simple DFA accepts no input.
+emptyDFA :: Ord a => Error (DFA a)
 emptyDFA = constructStateMachine "empty DFA" S.empty (S.singleton q0) [] q0 S.empty const
 
 --- BusyBeaver testing (turing machines)
 -- see https://en.wikipedia.org/wiki/Busy_beaver#Examples
 
--- | @BusyBeaverStore@ is a convenient way to store data about busy beaver machines
+-- | A convenient way to store data about busy beaver machines. Stores the number of 1s
+-- produced, the number of steps required, and the machine which should achieve those.
 type BusyBeaverStore = (Integer, Integer, TuringMachine Integer)
 
--- | @convOldFormNewForm@ is a utility function so that I don't have to manually recode
--- the busybeavers
+-- | A utility function so that the old format for the busy beavers can be reused.
 convOldFormNewForm ::
   (State, State, (Integer, Integer, TapeDir)) -> TuringMachineTransition Integer
 convOldFormNewForm (s, s', (a, e, e')) = Transition s s' a (e, e')
 
--- | @busyBeaver3State@ is a turing machine that outputs 6 1's over 14 steps
+-- | A turing machine that outputs six 1's over 14 steps.
 busyBeaver3State :: Error BusyBeaverStore
 busyBeaver3State = do
   sm <- inferStateMachine "busyBeaver3State" transitions q0 (S.singleton qH) const
@@ -101,7 +111,7 @@ busyBeaver3State = do
           (q2, q0, (1, 1, L))
         ]
 
--- | @busyBeaver4State@ is a turing machine that outputs 13 1's over 107 steps
+-- | A turing machine that outputs thirteen 1's over 107 steps.
 busyBeaver4State :: Error BusyBeaverStore
 busyBeaver4State = do
   sm <- inferStateMachine "busyBeaver4State" transitions q0 (S.singleton qH) const
@@ -120,7 +130,8 @@ busyBeaver4State = do
           (q3, q0, (1, 0, R))
         ]
 
--- | @busyBeaver5State@ is a turing machine that outputs 4098 1's over 47176870 steps
+-- | A turing machine that outputs 4098 1's over 47176870 steps. This will take a long
+-- time to run and process, so execute with caution - but it will halt at some stage.
 busyBeaver5State :: Error BusyBeaverStore
 busyBeaver5State = do
   sm <- inferStateMachine "busyBeaver5State" transitions q0 (S.singleton qH) const
@@ -141,8 +152,11 @@ busyBeaver5State = do
           (q4, q0, (1, 0, L))
         ]
 
--- | @busyBeaverCheck@ takes a @BusyBeaverStore@ and returns whether the number
--- of 1's and the number of steps matches the requested ones
+-- | Takes a `Data.StateMachines.Examples.BusyBeaverStore` and returns whether the number
+-- of 1's and the number of steps matches the requested ones. If the first two values are
+-- true, then the check was performed successfully. The end
+-- `Data.StateMachines.TuringMachine.RunTuringMachine` is also returned if manual
+-- inspection is wanted.
 busyBeaverCheck :: BusyBeaverStore -> (Bool, Bool, RunTuringMachine Integer)
 busyBeaverCheck (ones, steps, tm) = (ones == tapeSum, steps == timeSpent, runMachine)
   where

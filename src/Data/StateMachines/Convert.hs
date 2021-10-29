@@ -1,14 +1,22 @@
+-- |
+-- Module      :  Data.StateMachines.Convert
+-- License     :  BSD3
+--
+-- Maintainer  :  L0neGamer
+-- Stability   :  experimental
+--
+-- Functions for converting state machines.
 module Data.StateMachines.Convert (convertDFAToNFA) where
 
-import qualified Data.Bifunctor
+import Data.Bifunctor (Bifunctor (first))
 import Data.Map as M (map, mapKeys)
 import Data.Set as S (map)
 import Data.StateMachines.DFA (DFA)
 import Data.StateMachines.NFA (NFA, NFAData (Val))
 import Data.StateMachines.StateMachine (StateLike (toSet), StateMachine (..))
 
--- | @convertDFAToNFA@ converts the given DFA into an NFA of the same type
-convertDFAToNFA :: (Ord a) => DFA a -> NFA a
+-- | Converts the given DFA into an NFA of the same type.
+convertDFAToNFA :: Ord a => DFA a -> NFA a
 convertDFAToNFA StateMachine {..} =
   StateMachine
     ("NFA of `" ++ name ++ "`")

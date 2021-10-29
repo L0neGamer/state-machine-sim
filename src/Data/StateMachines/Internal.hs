@@ -1,3 +1,12 @@
+-- |
+-- Module      :  Data.StateMachines.Internal
+-- License     :  BSD3
+--
+-- Maintainer  :  L0neGamer
+-- Stability   :  experimental
+--
+-- Utility functions that are needed but aren't strictly relevant to the module as a
+-- whole.
 module Data.StateMachines.Internal
   ( Error,
     lookupEither,
@@ -12,29 +21,28 @@ import Data.Map as M (Map, lookup)
 import Data.Vector as V (Vector, modify)
 import Data.Vector.Generic.Mutable (write)
 
--- | @Error@ is the error type - useful for designating when something can error, and
--- bubbling it up
+-- | The error type - useful for designating when something can error, and bubbling it up.
 type Error a = Either String a
 
--- | @lookupEither@ looks up key @k@ in the @Map k v@, returning @Right v@ if the key is
--- found and returning @Left k@ if the key is not found
+-- | Looks up key @k@ in the @Map k v@, returning @Right v@ if the key is found and
+-- returning @Left k@ if the key is not found.
 lookupEither :: (Ord k) => k -> Map k v -> Either k v
 lookupEither k = lookupEither' k k
 
--- | @lookupEither'@ looks up key @k@ in the @Map k v@, returning @Right v@ if the key is
--- found and returning @Left s@ if the key is not found
+-- | Looks up key @k@ in the @Map k v@, returning @Right v@ if the key is found and
+-- returning @Left s@ if the key is not found.
 lookupEither' :: (Ord k) => s -> k -> Map k v -> Either s v
 lookupEither' s k = maybeToEither s . M.lookup k
 
--- | @updateVector@ updates the index of the given vector with the given value.
--- Recommended to use @Data.Vector.(//)@ instead if possible
+-- | Updates the index of the given vector with the given value.
+--
+-- Recommended to use `Data.Vector.(//)` instead if possible.
 updateVector :: Int -> a -> Vector a -> Error (Vector a)
 updateVector i a v
   | i < 0 || i >= length v = Left "Index requested for update out of bounds"
   | otherwise = return $ modify (\v' -> write v' i a) v
 
--- | @dropNothings@ goes through a list of @Maybe@ values, and removes any @Nothing@s,
--- leaving only @a@s
+-- | Goes through a list of @Maybe@ values, and removes any @Nothing@s, leaving only @a@s.
 dropNothings :: [Maybe a] -> [a]
 dropNothings [] = []
 dropNothings (Just a : xs) = a : dropNothings xs
