@@ -17,9 +17,9 @@ import Data.Foldable (Foldable (toList))
 import Data.Functor.Identity (Identity (Identity))
 import Data.List (genericTake)
 import Data.Set as S (member)
-import Safe (fromJustDef)
 import Data.StateMachines.RunStateMachine (Clock, Peekable (..), ReturnValue (Running, Term), RunSMResult, RunningSM (..), constructRunningSM, runSM)
 import Data.StateMachines.StateMachine (StateMachine (StateMachine, acceptStateIDs), Transition, runStep)
+import Safe (fromJustDef)
 
 -- | @TapeDir@ is a data type that determines which direction the tape should move
 data TapeDir

@@ -1,8 +1,6 @@
 module Main where
 
 import Data.Functor ((<&>))
-import Data.StateMachines.Internal (Error)
-import Data.StateMachines.RunStateMachine (extractResult)
 import Data.StateMachines.Convert (convertDFAToNFA)
 import Data.StateMachines.DFA (DFA)
 import Data.StateMachines.Examples
@@ -13,7 +11,9 @@ import Data.StateMachines.Examples
     exampleDFA,
     runExampleDFA,
   )
+import Data.StateMachines.Internal (Error)
 import Data.StateMachines.Regex (checkString, regexStrToNFA)
+import Data.StateMachines.RunStateMachine (extractResult)
 
 main :: IO ()
 main = do

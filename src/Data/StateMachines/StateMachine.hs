@@ -48,12 +48,12 @@ import Data.Set as S
     toList,
     union,
   )
-import Data.Vector as V (Vector, replicate, (!?), (//))
 import Data.StateMachines.Internal
   ( Error,
     lookupEither',
     updateVector,
   )
+import Data.Vector as V (Vector, replicate, (!?), (//))
 
 -- class StateMachine sm where
 --   removeTransition :: (Ord a) => Transition a -> sm a -> sm a

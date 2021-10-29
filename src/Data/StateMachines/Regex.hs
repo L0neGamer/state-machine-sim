@@ -5,9 +5,9 @@ module Data.StateMachines.Regex (checkString, regexStrToNFA) where
 
 import Data.Set as S (singleton)
 import Data.StateMachines.Internal (Error)
+import Data.StateMachines.NFA (NFA, NFAData (Epsilon, Val), NFATransition, runNFA)
 import Data.StateMachines.RunStateMachine (ReturnValue, clock, extractResult)
 import Data.StateMachines.StateMachine (State (State), inferStateMachine, tupleToSimpleTransition)
-import Data.StateMachines.NFA (NFA, NFAData (Epsilon, Val), NFATransition, runNFA)
 
 -- | @RegexToken@ represents all the tokens that can be expected from an input string
 data RegexToken

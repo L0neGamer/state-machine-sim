@@ -18,7 +18,6 @@ import Data.Set as S
     union,
     unions,
   )
-import Data.Vector ((!?))
 import Data.StateMachines.Internal (Error, dropNothings)
 import Data.StateMachines.RunStateMachine
   ( Clock,
@@ -30,6 +29,7 @@ import Data.StateMachines.RunStateMachine
     updateCurrentState,
   )
 import Data.StateMachines.StateMachine (StateID, StateMachine (..), Transition, runStep)
+import Data.Vector ((!?))
 
 -- | @NFAData@ is a data type meant to ease the use of NFAs
 data NFAData a = Epsilon | Val a deriving (Show, Eq, Ord)

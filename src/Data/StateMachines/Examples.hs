@@ -11,7 +11,7 @@ where
 
 import Data.Foldable (Foldable (toList))
 import Data.Set as S (empty, singleton)
-import GHC.OldList (genericTake)
+import Data.StateMachines.DFA (DFA, RunDFAResult, runDFA)
 import Data.StateMachines.Internal (Error)
 import Data.StateMachines.RunStateMachine
   ( Clock (time),
@@ -26,7 +26,6 @@ import Data.StateMachines.StateMachine
     inferStateMachine,
     tupleToSimpleTransition,
   )
-import Data.StateMachines.DFA (DFA, RunDFAResult, runDFA)
 import Data.StateMachines.TuringMachine
   ( RunTuringMachine,
     Tape (cursor, left, right),
@@ -36,6 +35,7 @@ import Data.StateMachines.TuringMachine
     blankTape,
     runTuringMachine,
   )
+import Data.List (genericTake)
 
 -- | Basic states for use in examples
 q0, q1, q2, q3, q4 :: State
