@@ -27,5 +27,5 @@ main = do
   print $ busyBeaver3State <&> busyBeaverCheck
   print $ busyBeaver4State <&> busyBeaverCheck
   -- print $ busyBeaver5State <&> busyBeaverCheck -- WARNING - takes a long time!!
-  print $ exampleDFA >>= convertDFAToNFA
+  print $ exampleDFA <&> convertDFAToNFA
   print "main_end"
