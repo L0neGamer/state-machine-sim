@@ -9,6 +9,7 @@ import NFA (NFA, NFAData (Epsilon, Val), NFATransition, runNFA)
 import RunStateMachine (ReturnValue, clock, extractResult)
 import StateMachine (State (State), inferStateMachine, tupleToSimpleTransition)
 
+-- | @RegexToken@ represents all the tokens that can be expected from an input string
 data RegexToken
   = LParen
   | RParen
@@ -17,32 +18,37 @@ data RegexToken
   | Alternation
   deriving (Show, Eq)
 
-type TokenStream = [RegexToken]
-
+-- | @Base@ represents the base elements of the regex AST (single characters, groups)
 data Base
   = BaseChar Char
   | BaseGroup Regex
   deriving (Show, Eq)
 
+-- | @Factor@ represents either a @Base@ element, or zero or more repetitions
 data Factor
   = FactorSingle Base
   | FactorStar Factor
   deriving (Show, Eq)
 
+-- | @Term@ represents either nothing, or one or more @Factor@s
 data Term
   = TermNil
   | TermFact Factor Term
   deriving (Show, Eq)
 
+-- | @Regex@ represents either a single @Term@, or an alternation between a @Term@ and
+-- another @Regex@
 data Regex
   = RegexSingle Term
   | RegexAlternation Term Regex
   deriving (Show, Eq)
 
+-- | @isChr@ checks if a @RegexToken@ is just a character or not
 isChr :: RegexToken -> Bool
 isChr (Chr _) = True
 isChr _ = False
 
+-- | @charToToken@ converts a character into its @RegexToken@
 charToToken :: Char -> RegexToken
 charToToken '*' = KleeneStar
 charToToken '(' = LParen
@@ -50,12 +56,16 @@ charToToken ')' = RParen
 charToToken '|' = Alternation
 charToToken x = Chr x
 
-toTokens :: String -> TokenStream
+-- | @toTokens@ takes a String and returns a list of @RegexToken@s, maintaining escaped
+-- characters
+toTokens :: String -> [RegexToken]
 toTokens [] = []
 toTokens ('\\' : x : xs) = Chr x : toTokens xs
 toTokens (x : xs) = charToToken x : toTokens xs
 
-parseRegex :: TokenStream -> Error (TokenStream, Regex)
+-- | @parseRegex@ takes a stream of @RegexToken@s, and returns a parsed @Regex@ and the
+-- rest of the stream
+parseRegex :: [RegexToken] -> Error ([RegexToken], Regex)
 parseRegex toks = do
   (toks', term) <- parseTerm toks
   if checkNext toks' Alternation
@@ -66,10 +76,12 @@ parseRegex toks = do
       )
     else return (toks', RegexSingle term)
 
-parseTerm :: TokenStream -> Error (TokenStream, Term)
+-- | @parseTerm@ takes a stream of @RegexToken@s, and returns a parsed @Term@ and the
+-- rest of the stream
+parseTerm :: [RegexToken] -> Error ([RegexToken], Term)
 parseTerm [] = return ([], TermNil)
 parseTerm toks@(tok : _) = do
-  if tok `isIn` baseChecks
+  if tok `isIn` [isChr, (== LParen)]
     then
       ( do
           (toks', fact) <- parseFactor toks
@@ -77,20 +89,25 @@ parseTerm toks@(tok : _) = do
           return (toks'', TermFact fact fact')
       )
     else return (toks, TermNil)
-  where
-    baseChecks = [isChr, (== LParen)]
 
-parseFactor :: TokenStream -> Error (TokenStream, Factor)
+-- | @parseFactor@ takes a stream of @RegexToken@s, and returns a parsed @Factor@ and the
+-- rest of the stream
+parseFactor :: [RegexToken] -> Error ([RegexToken], Factor)
 parseFactor toks = do
   (toks', base) <- parseBase toks
   (toks'', fact) <- parseFactor' toks' (FactorSingle base)
   return (toks'', fact)
 
-parseFactor' :: TokenStream -> Factor -> Error (TokenStream, Factor)
+-- | @parseFactor'@ is a helper functions that takes a stream of @RegexToken@s and an
+-- already parsed Factor and returns a parsed @Factor@ and the rest of the stream (for
+-- multiple @KleeneStar@s)
+parseFactor' :: [RegexToken] -> Factor -> Error ([RegexToken], Factor)
 parseFactor' (KleeneStar : toks) fact = parseFactor' toks (FactorStar fact)
 parseFactor' toks fact = return (toks, fact)
 
-parseBase :: TokenStream -> Error (TokenStream, Base)
+-- | @parseBase@ takes a stream of @RegexToken@s, and returns a parsed @Base@ and the
+-- rest of the stream
+parseBase :: [RegexToken] -> Error ([RegexToken], Base)
 parseBase (Chr c : toks) = return (toks, BaseChar c)
 parseBase (LParen : toks) = do
   (toks', regex) <- parseRegex toks
@@ -99,13 +116,17 @@ parseBase (LParen : toks) = do
     else Left $ "regex parentheses could not be parsed:\n\t" ++ show (LParen : toks)
 parseBase t = Left $ "unexpected non-base token:" ++ show t
 
-checkNext :: TokenStream -> RegexToken -> Bool
+-- | @checkNext@ checks whether the next token in a stream of @RegexToken@s is the given
+-- @RegexToken@, returning a boolean
+checkNext :: [RegexToken] -> RegexToken -> Bool
 checkNext [] _ = False
 checkNext (x : _) tok = x == tok
 
+-- | @isIn@ checks whether a @RegexToken@ fulfills any of the given boolean functions
 isIn :: RegexToken -> [RegexToken -> Bool] -> Bool
 isIn tok = any ($ tok)
 
+-- | @strToParsedRegex@ takes a string and returns the complete @Regex@ AST from it.
 strToParsedRegex :: String -> Error Regex
 strToParsedRegex str = do
   (toks, regex) <- parseRegex . toTokens $ str
@@ -118,15 +139,17 @@ strToParsedRegex str = do
           ++ " Original:"
           ++ show str
 
+-- | @stateFromInteger@ returns a state that represents the given integer
 stateFromInteger :: Integer -> State
 stateFromInteger = State . show
 
-tupleIntegerState :: (Integer, Integer, a) -> (State, State, a)
-tupleIntegerState (i, i', a) = (stateFromInteger i, stateFromInteger i', a)
-
+-- | @convertList@ converts a list of (integer, integer, @NFAData@) triplets into a list
+-- of @NFATransition@s
 convertList :: [(Integer, Integer, NFAData a)] -> [NFATransition a]
-convertList = (tupleToSimpleTransition . tupleIntegerState <$>)
+convertList = (tupleToSimpleTransition . (\(i, i', a) -> (stateFromInteger i, stateFromInteger i', a)) <$>)
 
+-- | @regexToNFA@ converts a @Regex@ AST, when given a start state integer, into a start
+-- and end state ID, and a list of @NFATransition@s
 regexToNFA :: Regex -> Integer -> (Integer, Integer, [NFATransition Char])
 regexToNFA (RegexSingle term) i = termToNFA term i
 regexToNFA (RegexAlternation term regex) i = (q0, q5, ts)
@@ -145,6 +168,8 @@ regexToNFA (RegexAlternation term regex) i = (q0, q5, ts)
             (q4, q5, Epsilon)
           ]
 
+-- | @ternToNFA@ converts a @Term@ AST, when given a start state integer, into a start
+-- and end state ID, and a list of @NFATransition@s
 termToNFA :: Term -> Integer -> (Integer, Integer, [NFATransition Char])
 termToNFA TermNil i = (i, i, [])
 termToNFA (TermFact fact term) i = (q0, q2, ts)
@@ -154,6 +179,8 @@ termToNFA (TermFact fact term) i = (q0, q2, ts)
     (_, q2, xs') = termToNFA term q1
     ts = xs ++ xs'
 
+-- | @factToNFA@ converts a @Factor@ AST, when given a start state integer, into a start
+-- and end state ID, and a list of @NFATransition@s
 factToNFA :: Factor -> Integer -> (Integer, Integer, [NFATransition Char])
 factToNFA (FactorStar fact) i = (q0, q1, ts)
   where
@@ -161,10 +188,13 @@ factToNFA (FactorStar fact) i = (q0, q1, ts)
     ts = xs ++ convertList [(q0, q1, Epsilon), (q1, q0, Epsilon)]
 factToNFA (FactorSingle base) i = baseToNFA base i
 
+-- | @baseToNFA@ converts a @Base@ AST, when given a start state integer, into a start
+-- and end state ID, and a list of @NFATransition@s
 baseToNFA :: Base -> Integer -> (Integer, Integer, [NFATransition Char])
 baseToNFA (BaseChar c) i = (i, i + 1, convertList [(i, i + 1, Val c)])
 baseToNFA (BaseGroup regex) s = regexToNFA regex s
 
+-- | @regexStrToNFA@ converts a string into an @NFA@ representing the regex in the string
 regexStrToNFA :: String -> Error (NFA Char)
 regexStrToNFA str = do
   regex <- strToParsedRegex str
@@ -176,6 +206,8 @@ regexStrToNFA str = do
     (S.singleton $ stateFromInteger end)
     const
 
+-- | @checkString@ takes an input string and a regex string, and returns whether the input
+-- (exactly) matches the regex
 checkString :: String -> String -> Error ReturnValue
 checkString inpStr regex = do
   nfa <- regexStrToNFA regex

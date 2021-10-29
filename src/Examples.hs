@@ -15,10 +15,10 @@ import Data.Set as S (empty, singleton)
 import GHC.OldList (genericTake)
 import Lib (Error)
 import RunStateMachine
-  ( RunningSM (remainingIter, tape),
+  ( Clock (time),
+    RunningSM (remainingIter, tape),
     clock,
     extractErrorAndMachine,
-    getTime,
   )
 import StateMachine
   ( State (State),
@@ -32,19 +32,22 @@ import TuringMachine
     Tape (cursor, left, right),
     TapeDir (L, R),
     TuringMachine,
+    TuringMachineTransition,
+    blankTape,
     runTuringMachine,
-    startingTape,
   )
 
+-- | Basic states for use in examples
 q0, q1, q2, q3, q4 :: State
 q0 : q1 : q2 : q3 : q4 : _ = fmap (State . show) ([0 ..] :: [Integer])
 
+-- | @qH@ is a state earmarked for being the final state - but isn't special in any way
 qH :: State
 qH = State "haltingState"
 
 --- DFA testing
 
--- | @exampleDFA@ accepts 101*0
+-- | @exampleDFA@ is a DFA that accepts 101*0
 exampleDFA :: Error (DFA Int)
 exampleDFA =
   inferStateMachine
@@ -61,9 +64,9 @@ exampleDFA =
     (S.singleton q3)
     const
 
--- | @runExampleDFA@ runs @exampleDFA@ on a given inpu
-runExampleDFA :: [Int] -> RunDFAResult Int
-runExampleDFA inp = exampleDFA >>= runDFA inp (clock 100)
+-- | @runExampleDFA@ runs @exampleDFA@ on a given input, with a maximum clock time of 100
+runExampleDFA :: [Int] -> Error (RunDFAResult Int)
+runExampleDFA inp = runDFA inp (clock 100) <$> exampleDFA
 
 -- | @emptyDFA@ accepts nothing
 emptyDFA :: (Ord a) => Error (DFA a)
@@ -71,12 +74,14 @@ emptyDFA = constructStateMachine "empty DFA" S.empty (S.singleton q0) [] q0 S.em
 
 --- BusyBeaver testing (turing machines)
 -- see https://en.wikipedia.org/wiki/Busy_beaver#Examples
+
+-- | @BusyBeaverStore@ is a convenient way to store data about busy beaver machines
 type BusyBeaverStore = (Integer, Integer, TuringMachine Integer)
 
--- | Utility function so that I don't have to manually recode the busybeavers
+-- | @convOldFormNewForm@ is a utility function so that I don't have to manually recode
+-- the busybeavers
 convOldFormNewForm ::
-  (State, State, (Integer, Integer, TapeDir)) ->
-  Transition Integer (Integer, TapeDir)
+  (State, State, (Integer, Integer, TapeDir)) -> TuringMachineTransition Integer
 convOldFormNewForm (s, s', (a, e, e')) = Transition s s' a (e, e')
 
 -- | @busyBeaver3State@ is a turing machine that outputs 6 1's over 14 steps
@@ -138,14 +143,13 @@ busyBeaver5State = do
 
 -- | @busyBeaverCheck@ takes a @BusyBeaverStore@ and returns whether the number
 -- of 1's and the number of steps matches the requested ones
-busyBeaverCheck :: BusyBeaverStore -> Error (Bool, Bool, RunTuringMachine Integer)
-busyBeaverCheck (ones, steps, tm) = do
-  (_, runMachine) <- extractErrorAndMachine runMachine'
-  let timeSpent = getTime (remainingIter runMachine)
-      tape' = tape runMachine
-      tapeSum =
-        sum (genericTake (timeSpent - cursor tape') $ toList (right tape'))
-          + sum (genericTake (timeSpent + cursor tape') $ toList (left tape'))
-  return (ones == tapeSum, steps == timeSpent, runMachine)
+busyBeaverCheck :: BusyBeaverStore -> (Bool, Bool, RunTuringMachine Integer)
+busyBeaverCheck (ones, steps, tm) = (ones == tapeSum, steps == timeSpent, runMachine)
   where
-    runMachine' = runTuringMachine (startingTape 0) (clock 0) tm
+    runMachine' = runTuringMachine (blankTape 0) (clock 0) tm
+    (_, runMachine) = extractErrorAndMachine runMachine'
+    timeSpent = time (remainingIter runMachine)
+    tape' = tape runMachine
+    tapeSum =
+      sum (genericTake (timeSpent - cursor tape') $ toList (right tape'))
+        + sum (genericTake (timeSpent + cursor tape') $ toList (left tape'))

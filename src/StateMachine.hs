@@ -15,12 +15,24 @@ module StateMachine
     tupleToSimpleTransition,
     inferStateMachine,
     constructStateMachine,
+    addTransition,
   )
 where
 
 import Control.Monad (when)
 import Data.Bifunctor (Bifunctor (bimap))
-import Data.Map as M (Map, empty, fromList, insert, lookup, member, (!))
+import Data.Map as M
+  ( Map,
+    alter,
+    empty,
+    findWithDefault,
+    fromList,
+    insert,
+    lookup,
+    member,
+    toList,
+    (!),
+  )
 import Data.Set as S
   ( Set,
     delete,
@@ -32,8 +44,9 @@ import Data.Set as S
     size,
     toAscList,
     toList,
+    union,
   )
-import Data.Vector as V (Vector, replicate, (!?))
+import Data.Vector as V (Vector, replicate, (!?), (//))
 import Lib
   ( Error,
     Single (..),
@@ -42,25 +55,50 @@ import Lib
     updateVector,
   )
 
+-- class StateMachine sm where
+--   removeTransition :: (Ord a) => Transition a -> sm a -> sm a
+
+--   reachableStates :: (Ord a) => sm a -> State -> States
+
+--   isAcceptable :: (Ord a) => sm a -> State -> Bool
+--   isAcceptable sm s = or $ S.map (`S.member` smAcceptStates sm) (reachableStates sm s)
+
+-- | @StateID@ is a type alias for Int to make it clearer what is being referred to
 type StateID = Int
 
+-- | @State@ is a data type that makes it easier to initially construct a state machine
 data State
   = Dead
   | State String
   deriving (Show, Eq, Ord)
 
+-- | @StateLike@ is a type class that adds some utility functions to an @s@ for use in
+-- computation
 class StateLike s where
+  -- | The singleton @StateLike@
   fromStateID :: StateID -> s StateID
+
+  -- | How this @s@ handles new @StateID@s
   combineStates :: StateID -> s StateID -> s StateID
+
+  -- | How to combine two @StateLike@ @s@s
+  combineStateLike :: s StateID -> s StateID -> s StateID
 
 instance StateLike Set where
   fromStateID = singleton
   combineStates s ss = S.insert s ss
+  combineStateLike = S.union
 
 instance StateLike Single where
   fromStateID = Single
   combineStates s _ = Single s
+  combineStateLike = const
 
+-- | @StateMachine@ is the data type that contains a state machine as well as some
+-- information about it
+-- @l@ is the type of the language used
+-- @s@ is the type of the @StateLike@ container used
+-- @e@ is the type of the additional outputs
 data StateMachine l s e = StateMachine
   { name :: !String,
     language :: !(Set l),
@@ -71,26 +109,33 @@ data StateMachine l s e = StateMachine
     namesToNumbers :: !(Map State StateID)
   }
 
+-- | @updateName@ overwrites the @name@ in a given @StateMachine@
 updateName :: String -> StateMachine l s e -> StateMachine l s e
-updateName name' StateMachine {..} = StateMachine name' language transitions startStateID acceptStateIDs addOutput namesToNumbers
+updateName v sm = sm {name = v}
 
+-- | @updateLanguage@ overwrites the @language@ in a given @StateMachine@
 updateLanguage :: Set l -> StateMachine l s e -> StateMachine l s e
-updateLanguage language' StateMachine {..} = StateMachine name language' transitions startStateID acceptStateIDs addOutput namesToNumbers
+updateLanguage v sm = sm {language = v}
 
+-- | @updateTransitions@ overwrites the @transitions@ in a given @StateMachine@
 updateTransitions :: (StateLike s) => Vector (Map l (s StateID, e)) -> StateMachine l s e -> StateMachine l s e
-updateTransitions transitions' StateMachine {..} = StateMachine name language transitions' startStateID acceptStateIDs addOutput namesToNumbers
+updateTransitions v sm = sm {transitions = v}
 
+-- | @updateStartStateID@ overwrites the @startStateID@ in a given @StateMachine@
 updateStartStateID :: StateID -> StateMachine l s e -> StateMachine l s e
-updateStartStateID startStateID' StateMachine {..} = StateMachine name language transitions startStateID' acceptStateIDs addOutput namesToNumbers
+updateStartStateID v sm = sm {startStateID = v}
 
+-- | @updateAcceptStateIDs@ overwrites the @AcceptStateIDs@ in a given @StateMachine@
 updateAcceptStateIDs :: Set StateID -> StateMachine l s e -> StateMachine l s e
-updateAcceptStateIDs acceptStateIDs' StateMachine {..} = StateMachine name language transitions startStateID acceptStateIDs' addOutput namesToNumbers
+updateAcceptStateIDs v sm = sm {acceptStateIDs = v}
 
+-- | @updateAddOutput@ overwrites the @AddOutput@ in a given @StateMachine@
 updateAddOutput :: (e -> e -> e) -> StateMachine l s e -> StateMachine l s e
-updateAddOutput addOutput' StateMachine {..} = StateMachine name language transitions startStateID acceptStateIDs addOutput' namesToNumbers
+updateAddOutput v sm = sm {addOutput = v}
 
+-- | @updateNamesToNumbers@ overwrites the @namesToNumbers@ in a given @StateMachine@
 updateNamesToNumbers :: Map State StateID -> StateMachine l s e -> StateMachine l s e
-updateNamesToNumbers namesToNumbers' StateMachine {..} = StateMachine name language transitions startStateID acceptStateIDs addOutput namesToNumbers'
+updateNamesToNumbers v sm = sm {namesToNumbers = v}
 
 instance (Show l, Show (s StateID), Show e, StateLike s) => Show (StateMachine l s e) where
   show sm =
@@ -105,6 +150,8 @@ instance (Show l, Show (s StateID), Show e, StateLike s) => Show (StateMachine l
     where
       contained f = "(" ++ show (f sm) ++ ") "
 
+-- | @Transition@ is a data type for holding information about a single transition between
+-- two states
 data Transition a b = Transition
   { startStateT :: State,
     endStateT :: State,
@@ -113,15 +160,21 @@ data Transition a b = Transition
   }
   deriving (Show, Eq)
 
+-- | @tupleToSimpleTransition@ takes a tuple that has two states and an @a@, and returns
+-- the equivalent @Transition@
 tupleToSimpleTransition :: (State, State, a) -> Transition a ()
 tupleToSimpleTransition (s, s', a) = Transition s s' a ()
 
+-- | @getStatesAndLang@ returns a set of the states and a set of the language characters
+-- used by a list of transitions
 getStatesAndLang :: (Ord a) => [Transition a b] -> (Set State, Set a)
 getStatesAndLang = foldr combine (S.empty, S.empty)
   where
     combine (Transition s s' a _) (ss, as) = (S.insert s (S.insert s' ss), S.insert a as)
 
-runStep :: (Ord l, (StateLike s)) => StateMachine l s e -> StateID -> l -> Error (s StateID, Maybe e)
+-- | @runStep@ runs a step of the given @StateMachine@ when a particular state and
+-- character to step on are given
+runStep :: (Ord l, StateLike s) => StateMachine l s e -> StateID -> l -> Error (s StateID, Maybe e)
 runStep sm sid l
   | sid >= 0 = do
     m <- maybeToEither "Could not find state (runStep)" (t !? sid)
@@ -132,25 +185,44 @@ runStep sm sid l
     interpretNothing Nothing = return (fromStateID (-1), Nothing)
     interpretNothing (Just (s, e)) = return (s, Just e)
 
+-- | @addTransition@ adds a single @Transition@ to a given @StateMachine@. Recommended to
+-- use @addTransitions@ for bulk additions as this uses the slower @updateVector@
 addTransition :: (StateLike s, Ord l) => Transition l e -> StateMachine l s e -> Error (StateMachine l s e)
-addTransition Transition {..} sm@StateMachine {..} = do
-  (ss, es, l, e) <- do
-    ss <- lookupEither' ("Could not locate startStateT " ++ show startStateT ++ " (addTransition)") startStateT namesToNumbers
-    es <- lookupEither' ("Could not locate endStateT " ++ show endStateT ++ " (addTransition)") endStateT namesToNumbers
-    return (ss, es, characterT, outputT)
+addTransition t sm@StateMachine {..} = do
+  (ss, (l, se)) <- addTransitions' t sm
+  m <- maybeToEither "Could not find start state (addTransition)" $ transitions !? ss
+  ts <- updateVector ss (M.insert l se m) transitions
+  return $ updateTransitions ts sm
+
+-- | @addTransitions'@ is a helper function for @addTransitions@ that turns a single
+-- @Transition@ into a nested tuple for use in @addTransitions@
+addTransitions' :: (StateLike s, Ord l) => Transition l e -> StateMachine l s e -> Error (StateID, (l, (s StateID, e)))
+addTransitions' Transition {..} StateMachine {..} = do
+  ss <- lookupEither' ("Could not locate startStateT " ++ show startStateT ++ " (addTransitions')") startStateT namesToNumbers
+  es <- lookupEither' ("Could not locate endStateT " ++ show endStateT ++ " (addTransitions')") endStateT namesToNumbers
+  let l = characterT
+      e = outputT
   when (l `S.notMember` language) $ Left "Character not in language"
   m <- maybeToEither "Could not find start state (addTransition)" $ transitions !? ss
   let combined
         | l `M.member` m = bimap (combineStates es) (addOutput e) (m M.! l)
         | otherwise = (fromStateID es, e)
-  v <- maybeToEither "Could not update vector (addTransition)" $ updateVector ss (M.insert l combined m) transitions
-  return $ updateTransitions v sm
+  return (ss, (l, combined))
 
+--TODO: foldrM and uses maps and stuff instead of doing all the accesses above and then redoing them again and again (type: Transition l e -> Map StateID (Map l (s StateID, e))))
+
+-- | @addTransitions@ takes a list of @Transition@s and a @StateMachine@, and returns a
+-- @StateMachine@ updated with those transitions
 addTransitions :: (StateLike s, Ord l) => [Transition l e] -> StateMachine l s e -> Error (StateMachine l s e)
-addTransitions ts sm = foldr foldFunc (return sm) ts
+addTransitions ts sm@StateMachine {..} = do
+  tups <- mapM (`addTransitions'` sm) ts
+  let v = transitions V.// M.toList (foldr hFunc M.empty tups)
+  return $ updateTransitions v sm
   where
-    foldFunc _ (Left s) = Left s
-    foldFunc t (Right statemachine) = addTransition t statemachine
+    hFunc (sid, (l, (s, e))) m = M.insert sid (M.alter hFunc' l (findWithDefault M.empty sid m)) m
+      where
+        hFunc' (Just (s', e')) = Just (combineStateLike s s', addOutput e e')
+        hFunc' Nothing = Just (s, e)
 
 -- | @constructStateMachine@ takes the machine name, the language, all the states in the
 -- machine, all the transitions between states using the language producing side effects
@@ -174,5 +246,6 @@ inferStateMachine' conSM name' transitions' startState acceptStates addOutput' =
   where
     (states', language') = getStatesAndLang transitions'
 
+-- @inferStateMachine@ infers a @StateMachine@ from the transitions
 inferStateMachine :: (Ord l, StateLike s) => String -> [Transition l e] -> State -> Set State -> (e -> e -> e) -> Error (StateMachine l s e)
 inferStateMachine = inferStateMachine' constructStateMachine

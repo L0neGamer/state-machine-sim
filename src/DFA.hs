@@ -1,7 +1,14 @@
-module DFA (DFATransition, DFA, RunDFA, RunDFAResult, runDFA) where
+module DFA
+  ( DFATransition,
+    DFA,
+    RunDFA,
+    RunDFAResult,
+    runDFA,
+  )
+where
 
 import Data.Set as S (member)
-import Lib (Error, Single (..))
+import Lib (Single (..))
 import RunStateMachine
   ( Clock,
     ReturnValue (Running, Term),
@@ -12,20 +19,28 @@ import RunStateMachine
   )
 import StateMachine (StateMachine (..), Transition, runStep)
 
+-- | @DFA@ is a type alias that represents the default type for DFAs
 type DFA a = StateMachine a Single ()
 
+-- | @DFATransition@ is a type alias that represents the default type for DFA transitions
 type DFATransition a = Transition a ()
 
+-- | @RunDFA@ is a type alias that represents the default type for running DFAs
 type RunDFA a = RunningSM [] a Single ()
 
+-- | @RunDFAResult@ is a type alias that represents the default type for the result of
+-- running a DFA
 type RunDFAResult a = RunSMResult [] a Single ()
 
-runDFA :: (Ord a) => [a] -> Clock -> DFA a -> RunDFAResult a
-runDFA tape' clk dfa = do
-  rdfa <- getRunDFA tape' clk dfa
-  return $ runSM rdfa
+-- | @runDFA@ takes an input list of type @a@, a Clock, and a DFA with language @a@, and
+-- returns the result of running that.
+-- Check @extractResult@ and @extractErrorAndMachine@ from @RunStateMachine@ to see how to
+-- extract values from it.
+runDFA :: Ord a => [a] -> Clock -> DFA a -> RunDFAResult a
+runDFA as ck dfa = runSM $ getRunDFA as ck dfa
 
-getRunDFA :: (Ord a) => [a] -> Clock -> DFA a -> Error (RunDFA a)
+-- | @getRunDFA@ constructs the @RunDFA@ value for a given input, clock, and @DFA@
+getRunDFA :: (Ord a) => [a] -> Clock -> DFA a -> RunDFA a
 getRunDFA tape' clk dfa =
   constructRunningSM
     tape'
