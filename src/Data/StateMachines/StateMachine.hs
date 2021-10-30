@@ -23,6 +23,7 @@ module Data.StateMachines.StateMachine
     updateAddOutput,
     updateNamesToNumbers,
     tupleToSimpleTransition,
+    addTransitions,
     addTransition,
   )
 where
@@ -261,7 +262,7 @@ inferStateMachine' conSM name' transitions' startState acceptStates addOutput' =
   where
     (states', language') = getStatesAndLang transitions'
 
--- | Infers a `StateMachine` from the transitions, using `getStatesAndLang`. Gets all the
+-- | Infers a `StateMachine` from the transitions, using @getStatesAndLang@. Gets all the
 -- states from the transitions, and gets the language from the transitions too.
 inferStateMachine :: (Ord l, StateLike s) => String -> [Transition l e] -> State -> Set State -> (e -> e -> e) -> Error (StateMachine l s e)
 inferStateMachine = inferStateMachine' constructStateMachine

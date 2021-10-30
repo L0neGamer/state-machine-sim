@@ -6,7 +6,7 @@
 -- Stability   :  experimental
 --
 -- Functions and types for constructing and running Turing machines. Includes new data
--- types such as `Tapes` for guaranteed infinite inputs.
+-- types such as `Tape`s for guaranteed infinite inputs.
 module Data.StateMachines.TuringMachine
   ( TapeDir (L, R),
     Tape (..),
@@ -19,6 +19,7 @@ module Data.StateMachines.TuringMachine
     runTuringMachine,
     Stream (..),
     fromListStream,
+    showStream,
   )
 where
 
@@ -40,20 +41,17 @@ data TapeDir
 -- | A type alias that represents the default type for Turing machines.
 type TuringMachine a = StateMachine a Identity (a, TapeDir)
 
--- | A type alias that represents the default type for Turing
--- machine transitions.
+-- | A type alias that represents the default type for Turing machine transitions.
 type TuringMachineTransition a = Transition a (a, TapeDir)
 
--- | A type alias that represents the default type for running
--- Turing machines.
+-- | A type alias that represents the default type for running Turing machines.
 type RunTuringMachine a = RunningSM Tape a Identity (a, TapeDir)
 
--- | A type alias that represents the default type for the
--- result of running a Turing machine.
+-- | A type alias that represents the default type for the result of running a Turing
+-- machine.
 type RunTuringMachineResult a = RunSMResult Tape a Identity (a, TapeDir)
 
--- | An infinite data storage type. The `Show` instance limits the output to
--- 15 values by default.
+-- | An infinite data storage type.
 data Stream a = Stream a (Stream a)
 
 instance Functor Stream where
@@ -62,6 +60,7 @@ instance Functor Stream where
 instance Foldable Stream where
   foldr f b (Stream a as) = a `f` foldr f b as
 
+-- | The `Show` instance limits the output to 15 values by default, using `showStream`.
 instance (Show a) => Show (Stream a) where
   show = showStream showStreamLimit
     where
@@ -85,7 +84,7 @@ showStream i st@(Stream a _) = "fromListStream (" ++ show infVal ++ ") " ++ show
       | i <= 0 = a
       | otherwise = last lst
 
--- | A `Stream` of unit (`()`) values.
+-- | A `Stream` of unit values.
 nullStream :: Stream ()
 nullStream = Stream () nullStream
 
@@ -96,8 +95,11 @@ moveHeadTo (Stream a as) bs = (as, Stream a bs)
 -- | The data type that represents an infinite tape going off to the `left` and `right`,
 -- with a `cursor` designating how far the tape currently is from the start location.
 data Tape a = Tape
-  { right :: Stream a,
+  { -- | The tape contents including the cursor, and going to the right.
+    right :: Stream a,
+    -- | The tape contents to the left of the cursor.
     left :: Stream a,
+    -- | Where the tape is in relation to the starting location.
     cursor :: Integer
   }
 

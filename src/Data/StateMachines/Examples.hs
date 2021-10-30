@@ -12,6 +12,7 @@ module Data.StateMachines.Examples
   ( emptyDFA,
     exampleDFA,
     runExampleDFA,
+    BusyBeaverStore,
     busyBeaver3State,
     busyBeaver4State,
     busyBeaver5State,

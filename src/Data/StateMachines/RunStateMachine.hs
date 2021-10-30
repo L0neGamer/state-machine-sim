@@ -9,10 +9,13 @@
 module Data.StateMachines.RunStateMachine
   ( Peekable (..),
     Clock (time),
+    Bound (..),
     clock,
     ReturnValue (Running, Term),
     extractResult,
     extractErrorAndMachine,
+    StepFunction,
+    HaltingFunction,
     RunSMResult,
     RunningSM (..),
     constructRunningSM,
