@@ -40,7 +40,19 @@ packages:
 # - git: https://github.com/commercialhaskell/stack.git
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
 #
-# extra-deps: []
+extra-deps: 
+- diagrams-1.4.0.1@sha256:5d003c391fff00c945f8014c24bac0ea7b8daa9500349bef4646fa620a0c5327,5480
+- diagrams-contrib-1.4.4@sha256:5b742805bc672fa9afc204678ef675e94cafa27470a9d8f59fc26c0ff1edb90d,4731
+- diagrams-core-1.5.0@sha256:eae2e82ad2e5ddbbfc9875067a0810dc4ebf35549ca6d0018a536d94b3aa7bf1,2973
+- diagrams-lib-1.4.4@sha256:1129be254377b926ce2e932113e4bd06256de878d163fbcbacacf1be97bdf3b0,8220
+- diagrams-svg-1.4.3@sha256:407ff78cb7bd1f44c68b0059036186f17a281a053901e29d0139ab151e703247,3159
+- active-0.2.0.15@sha256:22e235aefdd47121db743e138d309d7529b0eea545f9add8c113ce8f15ccf83e,1767
+- dual-tree-0.2.3.0@sha256:bba5476c1cefc3802708a72ab22b5eab9e182cc065507f4a1f673ebdfc694bad,2884
+- force-layout-0.4.0.6@sha256:4adae4a45a09a9378ea87930f082a968767a2bc95f6b2122e11966c57046a01c,1287
+- monoid-extras-0.6@sha256:fabcab0a59ac48d8f271016cf8190b21969b202c760df2db85add2fef93d38b4,2197
+- svg-builder-0.1.1@sha256:22de54d326a6b6912e461e1302edb9108b02aac0b6a6368fcdc3c4a224d487fd,1440
+- newtype-generics-0.6@sha256:ac08e4b6caff80c8310649581ffba887e9d65b659c8b5697feaf32cf135b6c68,2010
+- diagrams-graphviz-1.4.1.1@sha256:f9530ab907ae50cfffab2715865b306854fb491308969944707942a56910af33,1426
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

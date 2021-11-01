@@ -14,6 +14,7 @@ import Data.StateMachines.Examples
 import Data.StateMachines.Internal (Error)
 import Data.StateMachines.Regex (checkString, regexStrToNFA)
 import Data.StateMachines.RunStateMachine (extractResult)
+import Data.StateMachines.Diagrams (test)
 
 main :: IO ()
 main = do
@@ -28,4 +29,7 @@ main = do
   print $ busyBeaver4State <&> busyBeaverCheck
   -- print $ busyBeaver5State <&> busyBeaverCheck -- WARNING - takes a long time!!
   print $ exampleDFA <&> convertDFAToNFA
+  -- mapM_ test exampleDFA
+  -- mapM_ test (regexStrToNFA "hel*o the(re|ba)*")
+  mapM_ (\(_,_,sm) -> test sm) busyBeaver3State 
   print "main_end"

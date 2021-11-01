@@ -25,6 +25,14 @@ dependencies:
   - vector
   - extra
   - safe
+  - diagrams
+  - diagrams-core
+  - diagrams-lib
+  - diagrams-svg
+  - diagrams-contrib
+  - graphviz
+  - diagrams-graphviz
+  - fgl
 
 library:
   source-dirs: src
