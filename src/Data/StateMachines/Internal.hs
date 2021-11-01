@@ -12,7 +12,6 @@ module Data.StateMachines.Internal
     lookupEither,
     lookupEither',
     updateVector,
-    dropNothings,
   )
 where
 
@@ -41,12 +40,6 @@ updateVector :: Int -> a -> Vector a -> Error (Vector a)
 updateVector i a v
   | i < 0 || i >= length v = Left "Index requested for update out of bounds"
   | otherwise = return $ modify (\v' -> write v' i a) v
-
--- | Goes through a list of @Maybe@ values, and removes any @Nothing@s, leaving only @a@s.
-dropNothings :: [Maybe a] -> [a]
-dropNothings [] = []
-dropNothings (Just a : xs) = a : dropNothings xs
-dropNothings (Nothing : xs) = dropNothings xs
 
 -- TODO: https://archives.haskell.org/projects.haskell.org/diagrams/tutorials.html
 -- -- or https://discordapp.com/channels/195989586260918272/222003210670440451/709816458921640057

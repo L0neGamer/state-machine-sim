@@ -27,7 +27,7 @@ import Data.Set as S
     union,
     unions,
   )
-import Data.StateMachines.Internal (Error, dropNothings)
+import Data.StateMachines.Internal (Error)
 import Data.StateMachines.RunStateMachine
   ( Clock,
     ReturnValue (Running, Term),
@@ -39,6 +39,7 @@ import Data.StateMachines.RunStateMachine
   )
 import Data.StateMachines.StateMachine (StateID, StateMachine (..), Transition, runStep)
 import Data.Vector ((!?))
+import Data.Maybe (mapMaybe)
 
 -- | A data type meant to ease the use of NFAs.
 data NFAData a = Epsilon | Val a deriving (Show, Eq, Ord)
@@ -93,7 +94,7 @@ getRunNFA tape' clk nfa = do
 expandEpsilon :: (Ord a) => Set StateID -> NFA a -> Error (Set StateID)
 expandEpsilon ss nfa@StateMachine {..} = do
   ms <- mapM stepEpsilons (filter (>= 0) $ S.toList ss)
-  let ss' = S.unions $ dropNothings (fmap (fmap fst . M.lookup Epsilon) ms)
+  let ss' = S.unions $ mapMaybe (fmap fst . M.lookup Epsilon) ms
   if ss' `S.isSubsetOf` ss then return ss else expandEpsilon (S.union ss ss') nfa
   where
     stepEpsilons s = maybeToEither "Could not find state (expandEpsilon)" (transitions !? s)

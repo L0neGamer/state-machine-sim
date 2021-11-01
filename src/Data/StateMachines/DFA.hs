@@ -49,6 +49,9 @@ type RunDFAResult a = RunSMResult [] a Identity ()
 runDFA :: Ord a => [a] -> Clock -> DFA a -> RunDFAResult a
 runDFA as ck dfa = runSM $ getRunDFA as ck dfa
 
+-- TODO: further unify NFAs, DFAs, and Turing machines in their getRun functions
+-- there are a lot of similarities between them, so unifying them would be good
+
 -- | Constructs the `RunDFA` value for a given input, clock, and `DFA`.
 getRunDFA :: (Ord a) => [a] -> Clock -> DFA a -> RunDFA a
 getRunDFA tape' clk dfa =

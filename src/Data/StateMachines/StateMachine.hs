@@ -76,34 +76,41 @@ type StateID = Int
 -- | A data type that makes it easier to initially construct a state machine.
 data State
   = Dead
-  | State String
+  | State {stateName :: String}
   deriving (Show, Eq, Ord)
 
 -- | A type class that adds some utility functions to an @s@ for use in computation.
 class StateLike s where
   -- | Construct a `StateLike` data type from a `StateID`.
-  fromStateID :: StateID -> s StateID
+  fromSingle :: a -> s a
 
-  -- | How to combine a new `StateID` with an existing `StateLike` data type.
-  combineStates :: StateID -> s StateID -> s StateID
+  -- | How to put a new item into an existing `StateLike` data type. Prefer the new item.
+  combineStates :: Ord a => a -> s a -> s a
 
-  -- | How to combine two `StateLike` data types (if they are the same).
-  combineStateLike :: s StateID -> s StateID -> s StateID
+  -- | How to combine two `StateLike` data types (if they are the same). Prefer the first
+  -- `StateLike`.
+  combineStateLike :: Ord a => s a -> s a -> s a
 
   -- | How to turn a `StateLike` data type into a `Set`.
   toSet :: s a -> Set a
 
+  -- | Check if this item contains only one element.
+  isSingle :: s a -> Bool
+
 instance StateLike Set where
-  fromStateID = singleton
+  fromSingle = singleton
   combineStates s ss = S.insert s ss
   combineStateLike = S.union
   toSet = id
+  isSingle (S.toList -> [_]) = True
+  isSingle _ = False
 
 instance StateLike Identity where
-  fromStateID = Identity
+  fromSingle = Identity
   combineStates s _ = Identity s
   combineStateLike = const
   toSet (Identity s) = S.singleton s
+  isSingle _ = True
 
 -- | @StateMachine@ is the data type that contains a state machine as well as some
 -- information about it
@@ -192,7 +199,7 @@ runStep sm sid l
   | otherwise = interpretNothing Nothing
   where
     t = transitions sm
-    interpretNothing Nothing = return (fromStateID (-1), Nothing)
+    interpretNothing Nothing = return (fromSingle (namesToNumbers sm M.! Dead), Nothing)
     interpretNothing (Just (s, e)) = return (s, Just e)
 
 -- | Adds a single `Transition` to a given `StateMachine`. Recommended to use
@@ -216,7 +223,7 @@ addTransitions' Transition {..} StateMachine {..} = do
   m <- maybeToEither "Could not find start state (addTransition)" $ transitions !? ss
   let combined
         | l `M.member` m = bimap (combineStates es) (addOutput e) (m M.! l)
-        | otherwise = (fromStateID es, e)
+        | otherwise = (fromSingle es, e)
   return (ss, (l, combined))
 
 --TODO: foldrM and uses maps and stuff instead of doing all the accesses above and then redoing them again and again (type: Transition l e -> Map StateID (Map l (s StateID,e)) -> Error (Map StateID (Map l (s StateID,e))) )

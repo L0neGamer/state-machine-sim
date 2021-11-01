@@ -32,7 +32,7 @@ module Data.StateMachines.RunStateMachine
 where
 
 import Data.StateMachines.Internal (Error)
-import Data.StateMachines.StateMachine (StateID, StateLike (fromStateID), StateMachine (startStateID))
+import Data.StateMachines.StateMachine (StateID, StateLike (fromSingle), StateMachine (startStateID))
 
 -- | A data type that stores a timer ticking upwards, either unbounded or
 -- bounded.
@@ -176,7 +176,7 @@ constructRunningSM ::
 constructRunningSM tape' iter sm =
   RunSM
     tape'
-    (fromStateID (startStateID sm))
+    (fromSingle (startStateID sm))
     Running
     iter
     sm

@@ -36,7 +36,7 @@ data TapeDir
   = L
   | S
   | R
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
 
 -- | A type alias that represents the default type for Turing machines.
 type TuringMachine a = StateMachine a Identity (a, TapeDir)
@@ -52,7 +52,7 @@ type RunTuringMachine a = RunningSM Tape a Identity (a, TapeDir)
 type RunTuringMachineResult a = RunSMResult Tape a Identity (a, TapeDir)
 
 -- | An infinite data storage type.
-data Stream a = Stream a (Stream a)
+data Stream a = Stream a (Stream a) deriving (Eq, Ord)
 
 instance Functor Stream where
   fmap f (Stream a as) = Stream (f a) (fmap f as)
@@ -112,6 +112,12 @@ instance Functor Tape where
 instance Peekable Tape where
   peek (Tape (Stream a _) _ _) = return a
   swapFirst a (Tape (Stream _ as) bs i) = Tape (Stream a as) bs i
+
+instance (Eq a) => Eq (Tape a) where
+  (Tape right left cursor) == (Tape right' left' cursor') = cursor == cursor' && zip (toList right) (toList left) == zip (toList right') (toList left')
+
+instance (Ord a) => Ord (Tape a) where
+  (Tape right left cursor) <= (Tape right' left' cursor') = cursor <= cursor' && zip (toList right) (toList left) <= zip (toList right') (toList left')
 
 -- | Constructs a `Tape` that is entirely the given value.
 blankTape :: a -> Tape a
