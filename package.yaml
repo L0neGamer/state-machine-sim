@@ -33,6 +33,7 @@ dependencies:
   - graphviz
   - diagrams-graphviz
   - fgl
+  - SVGFonts
 
 library:
   source-dirs: src

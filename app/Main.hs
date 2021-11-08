@@ -3,9 +3,11 @@ module Main where
 import Data.Functor ((<&>))
 import Data.StateMachines.Convert (convertDFAToNFA)
 import Data.StateMachines.DFA (DFA)
+import Data.StateMachines.Diagrams (drawStateMachineTo)
 import Data.StateMachines.Examples
   ( busyBeaver3State,
     busyBeaver4State,
+    busyBeaver5State,
     busyBeaverCheck,
     emptyDFA,
     exampleDFA,
@@ -14,7 +16,8 @@ import Data.StateMachines.Examples
 import Data.StateMachines.Internal (Error)
 import Data.StateMachines.Regex (checkString, regexStrToNFA)
 import Data.StateMachines.RunStateMachine (extractResult)
-import Data.StateMachines.Diagrams (test)
+import Data.StateMachines.StateMachine (name)
+import System.Directory.Extra (getCurrentDirectory)
 
 main :: IO ()
 main = do
@@ -30,6 +33,12 @@ main = do
   -- print $ busyBeaver5State <&> busyBeaverCheck -- WARNING - takes a long time!!
   print $ exampleDFA <&> convertDFAToNFA
   -- mapM_ test exampleDFA
-  -- mapM_ test (regexStrToNFA "hel*o the(re|ba)*")
-  mapM_ (\(_,_,sm) -> test sm) busyBeaver3State 
+
+  mapM_ test (regexStrToNFA "hel*o the(re|ba)*")
+  -- mapM_ (\(_,_,sm) -> test sm) busyBeaver3State
+  mapM_ (\(_, _, sm) -> test sm) busyBeaver5State
   print "main_end"
+  where
+    test sm = do
+      curDir <- getCurrentDirectory
+      drawStateMachineTo (curDir ++ "/" ++ name sm ++ ".svg") 500 sm
