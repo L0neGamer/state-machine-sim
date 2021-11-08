@@ -108,7 +108,6 @@ data Tape a = Tape
     cursor :: Integer
   }
 
-
 instance (Show a) => Show (Tape a) where
   show (Tape r l c) = "Tape (" ++ show r ++ ") (" ++ show l ++ ") " ++ show c
 

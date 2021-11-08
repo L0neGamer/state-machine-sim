@@ -83,7 +83,6 @@ instance Peekable [] where
   swapFirst _ [] = []
   swapFirst a (_ : as) = a : as
 
-
 -- | A type alias for a function that determines whether the machine
 -- should halt.
 type HaltingFunction f l s e = s StateID -> e -> f l -> StateMachine l s e -> ReturnValue
@@ -178,14 +177,20 @@ runSM ::
   (Peekable f, StateLike s) =>
   RunningSM f l s e ->
   RunSMResult f l s e
-runSM rsm@RunSM {stateMachine=sm@StateMachine {..},..} = do
+runSM rsm@RunSM {stateMachine = sm@StateMachine {..}, ..} = do
+  -- get the value to act on
   t <- leftWrap $ peek tape
+  -- perform a step
   (s, e) <- leftWrap $ step currentState t sm
+  -- based on the values retrieved, modify the tape and the clock
   let tape' = modifyTape e tape
       remainingIter' = tickClock remainingIter
+  -- check if the clock has overrun, or if the machine is in a halting state
   returnValue' <-
     leftWrap $
       returnValueCheckClock (halting s e tape' sm) remainingIter'
+  -- update the running state machine with the new tape, current state, clock, and return
+  -- value
   let rsm' =
         updateReturnValue returnValue' $
           updateRemainingIter remainingIter' $

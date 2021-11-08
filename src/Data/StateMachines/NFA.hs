@@ -38,7 +38,7 @@ import Data.StateMachines.RunStateMachine
     runSM,
     updateCurrentState,
   )
-import Data.StateMachines.StateMachine (StateID, StateMachine (..), Transition, step', ConsSM(..))
+import Data.StateMachines.StateMachine (ConsSM (..), StateID, StateMachine (..), Transition, step')
 import Data.Vector ((!?))
 
 -- | A data type meant to ease the use of NFAs.
@@ -92,8 +92,9 @@ expandEpsilon ss nfa@StateMachine {..} = do
   where
     stepEpsilons s = maybeToEither "Could not find state (expandEpsilon)" (transitions !? s)
 
+-- | Type class for constructin `NFA`s.
 instance Ord l => ConsSM (NFAData l) Set () where
-  stepFunction ss l sm =do
+  stepFunction ss l sm = do
     statesList <- mapM (\s -> step' s l sm) (S.toList ss)
     expandedStates <-
       expandEpsilon

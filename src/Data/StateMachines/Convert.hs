@@ -13,7 +13,7 @@ import Data.Map as M (map, mapKeys)
 import Data.Set as S (map)
 import Data.StateMachines.DFA (DFA)
 import Data.StateMachines.NFA (NFA, NFAData (Val))
-import Data.StateMachines.StateMachine (StateLike (toSet), StateMachine (..), ConsSM (stepFunction))
+import Data.StateMachines.StateMachine (ConsSM (stepFunction), StateLike (toSet), StateMachine (..))
 
 -- | Converts the given DFA into an NFA of the same type.
 convertDFAToNFA :: Ord a => DFA a -> NFA a

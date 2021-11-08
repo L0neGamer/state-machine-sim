@@ -32,9 +32,10 @@ import Data.StateMachines.RunStateMachine
     extractErrorAndMachine,
   )
 import Data.StateMachines.StateMachine
-  ( State (State),
+  ( ConsSM (consSM, inferSM),
+    State (State),
     Transition (Transition),
-    tupleToSimpleTransition, ConsSM (inferSM, consSM)
+    tupleToSimpleTransition,
   )
 import Data.StateMachines.TuringMachine
   ( RunTuringMachine,

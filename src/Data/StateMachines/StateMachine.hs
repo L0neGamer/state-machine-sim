@@ -85,6 +85,7 @@ data State
   | State {stateName :: String}
   deriving (Show, Eq, Ord)
 
+-- | Utility function to get the name of the given state, whether it is `Dead` or not.
 stateName' :: State -> String
 stateName' Dead = "Dead"
 stateName' s = stateName s

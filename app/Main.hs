@@ -32,10 +32,9 @@ main = do
   print $ busyBeaver4State <&> busyBeaverCheck
   -- print $ busyBeaver5State <&> busyBeaverCheck -- WARNING - takes a long time!!
   print $ exampleDFA <&> convertDFAToNFA
-  -- mapM_ test exampleDFA
-
+  mapM_ test exampleDFA
   mapM_ test (regexStrToNFA "hel*o the(re|ba)*")
-  -- mapM_ (\(_,_,sm) -> test sm) busyBeaver3State
+  mapM_ (\(_, _, sm) -> test sm) busyBeaver3State
   mapM_ (\(_, _, sm) -> test sm) busyBeaver5State
   print "main_end"
   where

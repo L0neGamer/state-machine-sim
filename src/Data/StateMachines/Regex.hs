@@ -23,7 +23,7 @@ import Data.Set as S (singleton)
 import Data.StateMachines.Internal (Error)
 import Data.StateMachines.NFA (NFA, NFAData (Epsilon, Val), NFATransition, runNFA)
 import Data.StateMachines.RunStateMachine (ReturnValue, clock, extractResult)
-import Data.StateMachines.StateMachine (State (State), tupleToSimpleTransition, ConsSM (inferSM))
+import Data.StateMachines.StateMachine (ConsSM (inferSM), State (State), tupleToSimpleTransition)
 
 -- | Represents all the tokens that can be expected from an input string.
 data RegexToken
