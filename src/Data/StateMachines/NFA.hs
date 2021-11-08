@@ -18,6 +18,7 @@ where
 
 import Data.Either.Extra (maybeToEither)
 import Data.Map as M (lookup)
+import Data.Maybe (mapMaybe)
 import Data.Set as S
   ( Set,
     empty,
@@ -39,7 +40,6 @@ import Data.StateMachines.RunStateMachine
   )
 import Data.StateMachines.StateMachine (StateID, StateMachine (..), Transition, runStep)
 import Data.Vector ((!?))
-import Data.Maybe (mapMaybe)
 
 -- | A data type meant to ease the use of NFAs.
 data NFAData a = Epsilon | Val a deriving (Show, Eq, Ord)

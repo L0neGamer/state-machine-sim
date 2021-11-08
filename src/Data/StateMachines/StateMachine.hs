@@ -9,6 +9,7 @@
 module Data.StateMachines.StateMachine
   ( StateID,
     State (..),
+    stateName',
     StateLike (..),
     Transition (..),
     StateMachine (..),
@@ -63,6 +64,7 @@ import Data.StateMachines.Internal
     updateVector,
   )
 import Data.Vector as V (Vector, replicate, (!?), (//))
+import Diagrams.Core.Names (IsName)
 
 -- TODO: the below
 --   removeTransition :: (Ord a) => Transition a -> sm a -> sm a
@@ -78,6 +80,12 @@ data State
   = Dead
   | State {stateName :: String}
   deriving (Show, Eq, Ord)
+
+stateName' :: State -> String
+stateName' Dead = "Dead"
+stateName' s = stateName s
+
+instance IsName State
 
 -- | A type class that adds some utility functions to an @s@ for use in computation.
 class StateLike s where
