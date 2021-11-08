@@ -107,7 +107,7 @@ convertTransitions v mapNumbersToNames = S.fromList temp
     expandFromEnd (ss, sid, le) = fmap (\sid' -> ((ss, sid'), fromSingle le)) $ mapNumbersToNames $ S.toList $ toSet sid
     temp = fmap (\((s, s'), le) -> (s, s', le)) $ assocs $ M.fromListWith combineStateLike $ concatMap expandFromEnd $ concatMap expandFromStart lst
 
-stateMachineToGraph :: (Ord l, Ord e, Ord (s (l, e)), StateLike s) => ([StateID] -> [State]) -> StateMachine l s e -> Gr State (s (l, e))
+stateMachineToGraph :: (Ord l, Ord e, Ord (s (l, e)), StateLike s, Monoid e) => ([StateID] -> [State]) -> StateMachine l s e -> Gr State (s (l, e))
 stateMachineToGraph mapNumbersToNames StateMachine {..} =
   mkGraph
     (S.toList states)
@@ -115,7 +115,7 @@ stateMachineToGraph mapNumbersToNames StateMachine {..} =
   where
     states = S.insert Dead $ S.fromList $mapNumbersToNames [0 .. length transitions -1]
 
-stateMachineToDiagram :: (Ord l, Ord e, Ord (s (l, e)), StateLike s, Show l, Show e, ShowTupleNoUnit l e) => StateMachine l s e -> IO (Diagram B)
+stateMachineToDiagram :: (Ord l, Ord e, Ord (s (l, e)), StateLike s, Show l, Show e, ShowTupleNoUnit l e, Monoid e) => StateMachine l s e -> IO (Diagram B)
 stateMachineToDiagram sm@StateMachine {..} =
   myDrawGraph
     (place . nodeMatch (numbersToNames M.! startStateID) acceptStates)
@@ -190,7 +190,7 @@ myConnectPerim opts n1 n2 a1 a2 annotation =
           e = fromMaybe oe (maxTraceP oe (unitX # rotate a2) sub2)
        in atop (place annotation ((s + e) / 2)) . atop (arrowBetween' opts s e)
 
-drawStateMachineTo :: (StateLike s, Show l, Show e, Ord l, Ord e, Ord (s (l, e)), ShowTupleNoUnit l e) => FilePath -> Double -> StateMachine l s e -> IO ()
+drawStateMachineTo :: (StateLike s, Show l, Show e, Ord l, Ord e, Ord (s (l, e)), ShowTupleNoUnit l e, Monoid e) => FilePath -> Double -> StateMachine l s e -> IO ()
 drawStateMachineTo filePath width sm = do
   diag <- stateMachineToDiagram sm
   renderPretty filePath (mkWidth width) diag

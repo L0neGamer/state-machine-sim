@@ -38,7 +38,7 @@ import Data.StateMachines.RunStateMachine
     runSM,
     updateCurrentState,
   )
-import Data.StateMachines.StateMachine (StateID, StateMachine (..), Transition, runStep)
+import Data.StateMachines.StateMachine (StateID, StateMachine (..), Transition, step', ConsSM(..))
 import Data.Vector ((!?))
 
 -- | A data type meant to ease the use of NFAs.
@@ -69,19 +69,12 @@ runNFA tape' clk nfa = getRunNFA tape' clk nfa >>= runSM
 -- | Constructs the `RunNFA` value for a given input, clock, and `NFA`.
 getRunNFA :: (Ord a) => [a] -> Clock -> NFA a -> RunNFAResult a
 getRunNFA tape' clk nfa = do
-  let rnfa = constructRunningSM (Val <$> tape') clk nfa (\_ x -> tail x) stepFunc haltingFunc
+  let rnfa = constructRunningSM (Val <$> tape') clk nfa (\_ x -> tail x) haltingFunc
   newStartStates <- leftFunc (expandEpsilon (currentState rnfa) (stateMachine rnfa)) rnfa
   return $ updateCurrentState newStartStates rnfa
   where
     leftFunc (Left s) rnfa = Left (s, rnfa)
     leftFunc (Right nss) _ = Right nss
-    stepFunc ss l RunSM {..} = do
-      statesList <- mapM (\s -> runStep stateMachine s l) (S.toList ss)
-      expandedStates <-
-        expandEpsilon
-          (foldr (S.union . fst) S.empty statesList)
-          stateMachine
-      return (expandedStates, ())
     haltingFunc ss _ as StateMachine {..}
       | null as && allVals = Term $ not . null $ S.intersection ss acceptStateIDs
       | allVals = Running
@@ -98,3 +91,12 @@ expandEpsilon ss nfa@StateMachine {..} = do
   if ss' `S.isSubsetOf` ss then return ss else expandEpsilon (S.union ss ss') nfa
   where
     stepEpsilons s = maybeToEither "Could not find state (expandEpsilon)" (transitions !? s)
+
+instance Ord l => ConsSM (NFAData l) Set () where
+  stepFunction ss l sm =do
+    statesList <- mapM (\s -> step' s l sm) (S.toList ss)
+    expandedStates <-
+      expandEpsilon
+        (foldr (S.union . fst) S.empty statesList)
+        sm
+    return (expandedStates, ())

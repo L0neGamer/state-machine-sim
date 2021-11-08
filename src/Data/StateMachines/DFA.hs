@@ -25,7 +25,7 @@ import Data.StateMachines.RunStateMachine
     constructRunningSM,
     runSM,
   )
-import Data.StateMachines.StateMachine (StateMachine (..), Transition, runStep)
+import Data.StateMachines.StateMachine (StateMachine (..), Transition)
 
 -- | A type alias that represents the default type for DFAs.
 type DFA a = StateMachine a Identity ()
@@ -49,9 +49,6 @@ type RunDFAResult a = RunSMResult [] a Identity ()
 runDFA :: Ord a => [a] -> Clock -> DFA a -> RunDFAResult a
 runDFA as ck dfa = runSM $ getRunDFA as ck dfa
 
--- TODO: further unify NFAs, DFAs, and Turing machines in their getRun functions
--- there are a lot of similarities between them, so unifying them would be good
-
 -- | Constructs the `RunDFA` value for a given input, clock, and `DFA`.
 getRunDFA :: (Ord a) => [a] -> Clock -> DFA a -> RunDFA a
 getRunDFA tape' clk dfa =
@@ -60,12 +57,8 @@ getRunDFA tape' clk dfa =
     clk
     dfa
     (\_ x -> tail x)
-    stepFunc
     haltingFunc
   where
-    stepFunc (Identity s) l RunSM {..} = do
-      (s', _) <- runStep stateMachine s l
-      return (s', ())
     haltingFunc (Identity s) _ as StateMachine {..}
       | null as && s >= 0 = Term $ s `S.member` acceptStateIDs
       | s >= 0 = Running

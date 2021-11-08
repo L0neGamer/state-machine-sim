@@ -23,7 +23,7 @@ import Data.Set as S (singleton)
 import Data.StateMachines.Internal (Error)
 import Data.StateMachines.NFA (NFA, NFAData (Epsilon, Val), NFATransition, runNFA)
 import Data.StateMachines.RunStateMachine (ReturnValue, clock, extractResult)
-import Data.StateMachines.StateMachine (State (State), inferStateMachine, tupleToSimpleTransition)
+import Data.StateMachines.StateMachine (State (State), tupleToSimpleTransition, ConsSM (inferSM))
 
 -- | Represents all the tokens that can be expected from an input string.
 data RegexToken
@@ -213,12 +213,11 @@ regexStrToNFA :: String -> Error (NFA Char)
 regexStrToNFA str = do
   regex <- strToParsedRegex str
   let (start, end, xs) = regexToNFA regex 0
-  inferStateMachine
+  inferSM
     ("regex NFA `" ++ str ++ "`")
     xs
     (stateFromInteger start)
     (S.singleton $ stateFromInteger end)
-    const
 
 -- | Takes an input string and a regex string, and returns whether the input (exactly)
 -- matches the regex.

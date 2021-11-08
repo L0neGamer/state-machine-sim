@@ -13,7 +13,7 @@ import Data.Map as M (map, mapKeys)
 import Data.Set as S (map)
 import Data.StateMachines.DFA (DFA)
 import Data.StateMachines.NFA (NFA, NFAData (Val))
-import Data.StateMachines.StateMachine (StateLike (toSet), StateMachine (..))
+import Data.StateMachines.StateMachine (StateLike (toSet), StateMachine (..), ConsSM (stepFunction))
 
 -- | Converts the given DFA into an NFA of the same type.
 convertDFAToNFA :: Ord a => DFA a -> NFA a
@@ -24,7 +24,7 @@ convertDFAToNFA StateMachine {..} =
     transitions'
     startStateID
     acceptStateIDs
-    addOutput
+    stepFunction
     namesToNumbers
   where
     transitions' = fmap (M.map (Data.Bifunctor.first toSet) . M.mapKeys Val) transitions

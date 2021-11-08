@@ -14,7 +14,6 @@ module Data.StateMachines.RunStateMachine
     ReturnValue (Running, Term),
     extractResult,
     extractErrorAndMachine,
-    StepFunction,
     HaltingFunction,
     RunSMResult,
     RunningSM (..),
@@ -26,13 +25,12 @@ module Data.StateMachines.RunStateMachine
     updateRemainingIter,
     updateStateMachine,
     updateModifyTape,
-    updateStep,
     updateHalting,
   )
 where
 
 import Data.StateMachines.Internal (Error)
-import Data.StateMachines.StateMachine (StateID, StateLike (fromSingle), StateMachine (startStateID))
+import Data.StateMachines.StateMachine (StateID, StateLike (fromSingle), StateMachine (..))
 
 -- | A data type that stores a timer ticking upwards, either unbounded or
 -- bounded.
@@ -85,9 +83,6 @@ instance Peekable [] where
   swapFirst _ [] = []
   swapFirst a (_ : as) = a : as
 
--- | A type alias for a function that gets the next states and extra
--- output.
-type StepFunction f l s e = s StateID -> l -> RunningSM f l s e -> Error (s StateID, e)
 
 -- | A type alias for a function that determines whether the machine
 -- should halt.
@@ -106,12 +101,11 @@ data RunningSM f l s e = RunSM
     remainingIter :: Clock,
     stateMachine :: !(StateMachine l s e),
     modifyTape :: e -> f l -> f l,
-    step :: StepFunction f l s e,
     halting :: HaltingFunction f l s e
   }
 
 instance
-  (Show (f l), Show l, Show (s StateID), Show e, StateLike s, Peekable f) =>
+  (Show (f l), Show l, Show (s StateID), Show e, StateLike s, Monoid e, Peekable f) =>
   Show
     (RunningSM f l s e)
   where
@@ -149,10 +143,6 @@ updateStateMachine v rsm = rsm {stateMachine = v}
 updateModifyTape :: (e -> f l -> f l) -> RunningSM f l s e -> RunningSM f l s e
 updateModifyTape v rsm = rsm {modifyTape = v}
 
--- | Overwrites the `step` function in a given `RunningSM`.
-updateStep :: StepFunction f l s e -> RunningSM f l s e -> RunningSM f l s e
-updateStep v rsm = rsm {step = v}
-
 -- | Overwrites the `halting` function in a given `RunningSM`.
 updateHalting :: HaltingFunction f l s e -> RunningSM f l s e -> RunningSM f l s e
 updateHalting v rsm = rsm {halting = v}
@@ -170,7 +160,6 @@ constructRunningSM ::
   Clock ->
   StateMachine l s e ->
   (e -> f l -> f l) ->
-  StepFunction f l s e ->
   HaltingFunction f l s e ->
   RunningSM f l s e
 constructRunningSM tape' iter sm =
@@ -181,7 +170,7 @@ constructRunningSM tape' iter sm =
     iter
     sm
 
--- | A type alias to more concisely work with the result of running a state machine.
+-- | A type alias to more concisely work with the result of running a state machine. The alias is for @Either (String, `RunningSM` f l s e) (`RunningSM` f l s e)@.
 type RunSMResult f l s e = Either (String, RunningSM f l s e) (RunningSM f l s e)
 
 -- | Runs a given `RunningSM` to completion or error.
@@ -189,14 +178,14 @@ runSM ::
   (Peekable f, StateLike s) =>
   RunningSM f l s e ->
   RunSMResult f l s e
-runSM rsm@RunSM {..} = do
+runSM rsm@RunSM {stateMachine=sm@StateMachine {..},..} = do
   t <- leftWrap $ peek tape
-  (s, e) <- leftWrap $ step currentState t rsm
+  (s, e) <- leftWrap $ step currentState t sm
   let tape' = modifyTape e tape
       remainingIter' = tickClock remainingIter
   returnValue' <-
     leftWrap $
-      returnValueCheckClock (halting s e tape' stateMachine) remainingIter'
+      returnValueCheckClock (halting s e tape' sm) remainingIter'
   let rsm' =
         updateReturnValue returnValue' $
           updateRemainingIter remainingIter' $

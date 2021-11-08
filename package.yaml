@@ -24,7 +24,6 @@ dependencies:
   - containers
   - vector
   - extra
-  - safe
   - diagrams
   - diagrams-core
   - diagrams-lib

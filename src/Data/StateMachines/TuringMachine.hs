@@ -28,8 +28,7 @@ import Data.Functor.Identity (Identity (Identity))
 import Data.List (genericTake)
 import Data.Set as S (member)
 import Data.StateMachines.RunStateMachine (Clock, Peekable (..), ReturnValue (Running, Term), RunSMResult, RunningSM (..), constructRunningSM, runSM)
-import Data.StateMachines.StateMachine (StateMachine (StateMachine, acceptStateIDs), Transition, runStep)
-import Safe (fromJustDef)
+import Data.StateMachines.StateMachine (StateMachine (StateMachine, acceptStateIDs), Transition)
 
 -- | A data type that determines which direction the tape should move.
 data TapeDir
@@ -37,6 +36,12 @@ data TapeDir
   | S
   | R
   deriving (Show, Eq, Ord)
+
+instance Semigroup TapeDir where
+  (<>) = const
+
+instance Monoid TapeDir where
+  mempty = S
 
 -- | A type alias that represents the default type for Turing machines.
 type TuringMachine a = StateMachine a Identity (a, TapeDir)
@@ -103,6 +108,7 @@ data Tape a = Tape
     cursor :: Integer
   }
 
+
 instance (Show a) => Show (Tape a) where
   show (Tape r l c) = "Tape (" ++ show r ++ ") (" ++ show l ++ ") " ++ show c
 
@@ -145,18 +151,15 @@ moveCursor S t = t
 -- Check `Data.StateMachines.RunStateMachine.extractResult` and
 -- `Data.StateMachines.RunStateMachine.extractErrorAndMachine` to see how to
 -- extract values from it.
-runTuringMachine :: (Ord a) => Tape a -> Clock -> TuringMachine a -> RunTuringMachineResult a
+runTuringMachine :: (Ord a, Monoid a) => Tape a -> Clock -> TuringMachine a -> RunTuringMachineResult a
 runTuringMachine tape' clk dfa = runSM (getRunTuringMachine tape' clk dfa)
 
 -- | Constructs the `RunTuringMachine` value for a given input, clock, and
 -- `TuringMachine`.
-getRunTuringMachine :: (Ord a) => Tape a -> Clock -> TuringMachine a -> RunTuringMachine a
-getRunTuringMachine tape' clk turingMachine = constructRunningSM tape' clk turingMachine modifyTape' stepFunc haltingFunc
+getRunTuringMachine :: (Ord a, Monoid a) => Tape a -> Clock -> TuringMachine a -> RunTuringMachine a
+getRunTuringMachine tape' clk turingMachine = constructRunningSM tape' clk turingMachine modifyTape' haltingFunc
   where
     modifyTape' (a, tapeDir) t = moveCursor tapeDir (swapFirst a t)
-    stepFunc (Identity s) l RunSM {..} = do
-      (s', e') <- runStep stateMachine s l
-      return (s', fromJustDef (l, S) e')
     haltingFunc (Identity s) _ _ StateMachine {..}
       | s `S.member` acceptStateIDs = Term True
       | s >= 0 = Running
