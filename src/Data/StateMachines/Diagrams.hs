@@ -113,7 +113,7 @@ convertTransitions v mapNumbersToNames = temp
     temp = fmap (\((s, s'), le) -> (s, s', le)) $ assocs $ M.fromListWith combineStateLike $ concatMap expandFromEnd $ concatMap expandFromStart lst
 
 -- | Convert a given `Data.StateMachines.StateMachine.StateMachine` into a graph.
-stateMachineToGraph :: (Ord l, Ord e, StateLike s, Monoid e) => ([StateID] -> [State]) -> StateMachine l s e -> Gr State (s (l, e))
+stateMachineToGraph :: (Ord l, Ord e, StateLike s, Semigroup e) => ([StateID] -> [State]) -> StateMachine l s e -> Gr State (s (l, e))
 stateMachineToGraph mapNumbersToNames StateMachine {..} =
   mkGraph
     (S.toList states)
@@ -123,7 +123,7 @@ stateMachineToGraph mapNumbersToNames StateMachine {..} =
 
 -- | Convert a given `Data.StateMachines.StateMachine.StateMachine` into a `Diagram`.
 -- This uses a lot of custom functions, so please investigate at your own risk.
-stateMachineToDiagram :: (Ord l, Ord e, StateLike s, Show l, Show e, ShowTupleNoUnit e, Monoid e) => StateMachine l s e -> IO (Diagram B)
+stateMachineToDiagram :: (Ord l, Ord e, StateLike s, Show l, Show e, ShowTupleNoUnit e, Semigroup e) => StateMachine l s e -> IO (Diagram B)
 stateMachineToDiagram sm@StateMachine {..} =
   myDrawGraph
     (place . nodeMatch (numbersToNames M.! startStateID) acceptStates)
@@ -211,7 +211,7 @@ myConnectPerim opts n1 n2 a1 a2 annotation =
 -- | Draw a given state machine to the given path with the given width.
 --
 -- Good luck on trying to untangle the mess that went into this function.
-drawStateMachineTo :: (StateLike s, Show l, Show e, Ord l, Ord e, Ord (s (l, e)), ShowTupleNoUnit e, Monoid e) => FilePath -> Double -> StateMachine l s e -> IO ()
+drawStateMachineTo :: (StateLike s, Show l, Show e, Ord l, Ord e, Ord (s (l, e)), ShowTupleNoUnit e, Semigroup e) => FilePath -> Double -> StateMachine l s e -> IO ()
 drawStateMachineTo filePath width sm = do
   diag <- stateMachineToDiagram sm
   renderPretty filePath (mkWidth width) diag

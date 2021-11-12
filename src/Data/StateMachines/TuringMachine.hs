@@ -33,15 +33,11 @@ import Data.StateMachines.StateMachine (StateMachine (StateMachine, acceptStateI
 -- | A data type that determines which direction the tape should move.
 data TapeDir
   = L
-  | S
   | R
   deriving (Show, Eq, Ord)
 
 instance Semigroup TapeDir where
   (<>) = const
-
-instance Monoid TapeDir where
-  mempty = S
 
 -- | A type alias that represents the default type for Turing machines.
 type TuringMachine a = StateMachine a Identity (a, TapeDir)
@@ -142,7 +138,6 @@ moveCursor L Tape {..} = Tape r l (cursor - 1)
 moveCursor R Tape {..} = Tape r l (cursor + 1)
   where
     (r, l) = right `moveHeadTo` left
-moveCursor S t = t
 
 -- | Takes an input `Tape` of type @a@, a `Clock`, and a `TuringMachine` with language
 -- @a@, and returns the result of running that.
@@ -150,15 +145,16 @@ moveCursor S t = t
 -- Check `Data.StateMachines.RunStateMachine.extractResult` and
 -- `Data.StateMachines.RunStateMachine.extractErrorAndMachine` to see how to
 -- extract values from it.
-runTuringMachine :: (Ord a, Monoid a) => Tape a -> Clock -> TuringMachine a -> RunTuringMachineResult a
+runTuringMachine :: (Ord a, Semigroup a) => Tape a -> Clock -> TuringMachine a -> RunTuringMachineResult a
 runTuringMachine tape' clk dfa = runSM (getRunTuringMachine tape' clk dfa)
 
 -- | Constructs the `RunTuringMachine` value for a given input, clock, and
 -- `TuringMachine`.
-getRunTuringMachine :: (Ord a, Monoid a) => Tape a -> Clock -> TuringMachine a -> RunTuringMachine a
+getRunTuringMachine :: (Ord a, Semigroup a) => Tape a -> Clock -> TuringMachine a -> RunTuringMachine a
 getRunTuringMachine tape' clk turingMachine = constructRunningSM tape' clk turingMachine modifyTape' haltingFunc
   where
-    modifyTape' (a, tapeDir) t = moveCursor tapeDir (swapFirst a t)
+    modifyTape' (Just (a, tapeDir)) t = moveCursor tapeDir (swapFirst a t)
+    modifyTape' _ t = t
     haltingFunc (Identity s) _ _ StateMachine {..}
       | s `S.member` acceptStateIDs = Term True
       | s >= 0 = Running

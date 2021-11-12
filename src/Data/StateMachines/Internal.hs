@@ -9,6 +9,8 @@
 -- whole.
 module Data.StateMachines.Internal
   ( Error,
+    Const (..),
+    fromConst,
     lookupEither,
     lookupEither',
     updateVector,
@@ -40,6 +42,18 @@ updateVector :: Int -> a -> Vector a -> Error (Vector a)
 updateVector i a v
   | i < 0 || i >= length v = Left "Index requested for update out of bounds"
   | otherwise = return $ modify (\v' -> write v' i a) v
+
+-- | A convenience type for having an easy way of making a semigroup. To use, simply wrap
+-- your items in `Const` and the `Semigroup` implmentation for your items will be `const`.
+newtype Const a = Const a deriving (Show, Eq, Ord)
+
+instance Semigroup (Const a) where
+  (<>) = const
+
+fromConst :: Const a -> a
+fromConst (Const a) = a
+
+-- instance
 
 -- TODO: https://archives.haskell.org/projects.haskell.org/diagrams/tutorials.html
 -- -- or https://discordapp.com/channels/195989586260918272/222003210670440451/709816458921640057

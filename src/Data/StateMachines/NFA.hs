@@ -100,4 +100,4 @@ instance Ord l => ConsSM (NFAData l) Set () where
       expandEpsilon
         (foldr (S.union . fst) S.empty statesList)
         sm
-    return (expandedStates, ())
+    return (expandedStates, Just ())

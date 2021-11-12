@@ -127,7 +127,7 @@ instance StateLike Identity where
 
 -- | A type alias for a function that gets the next states and extra
 -- output.
-type StepFunction l s e = s StateID -> l -> StateMachine l s e -> Error (s StateID, e)
+type StepFunction l s e = s StateID -> l -> StateMachine l s e -> Error (s StateID, Maybe e)
 
 -- | @StateMachine@ is the data type that contains a state machine as well as some
 -- information about it
@@ -137,7 +137,7 @@ type StepFunction l s e = s StateID -> l -> StateMachine l s e -> Error (s State
 data StateMachine l s e = StateMachine
   { name :: !String,
     language :: !(Set l),
-    transitions :: !((StateLike s, Monoid e) => Vector (Map l (s StateID, e))),
+    transitions :: !((StateLike s, Semigroup e) => Vector (Map l (s StateID, e))),
     startStateID :: !StateID,
     acceptStateIDs :: !(Set StateID),
     step :: StepFunction l s e,
@@ -172,7 +172,7 @@ updateStep v sm = sm {step = v}
 updateNamesToNumbers :: Map State StateID -> StateMachine l s e -> StateMachine l s e
 updateNamesToNumbers v sm = sm {namesToNumbers = v}
 
-instance (Show l, Show (s StateID), Show e, StateLike s, Monoid e) => Show (StateMachine l s e) where
+instance (Show l, Show (s StateID), Show e, StateLike s, Semigroup e) => Show (StateMachine l s e) where
   show StateMachine {..} =
     "StateMachine "
       ++ show name
@@ -208,7 +208,7 @@ getStatesAndLang = foldr combine (S.empty, S.empty)
 -- | Runs a step of the given `StateMachine` when a particular state and character to step
 -- on are given. Useful for creating the more complex step functions needed in
 -- `Data.StateMachines.RunStateMachine.RunningSM` data types.
-step' :: (Ord l, StateLike s, Monoid e) => StateID -> l -> StateMachine l s e -> Error (s StateID, e)
+step' :: (Ord l, StateLike s, Semigroup e) => StateID -> l -> StateMachine l s e -> Error (s StateID, Maybe e)
 step' sid l sm
   | sid >= 0 = do
     m <- maybeToEither "Could not find state (step)" (t !? sid)
@@ -216,18 +216,18 @@ step' sid l sm
   | otherwise = interpretNothing Nothing
   where
     t = transitions sm
-    interpretNothing Nothing = return (fromSingle (namesToNumbers sm M.! Dead), mempty)
-    interpretNothing (Just (s, e)) = return (s, e)
+    interpretNothing Nothing = return (fromSingle (namesToNumbers sm M.! Dead), Nothing)
+    interpretNothing (Just (s, e)) = return (s, Just e)
 
 -- | Runs a step of the given deterministic `StateMachine` (that is, a state machine that
 -- only goes to one state on each step, where the `StateLike` container is Identity).
 -- This is used in both `Data.StateMachines.DFA` and `Data.StateMachines.TuringMachine`, as both of these machines are fully deterministic.
-deterministicStep :: (Ord l, Monoid e) => StepFunction l Identity e
+deterministicStep :: (Ord l, Semigroup e) => StepFunction l Identity e
 deterministicStep (Identity s) = step' s
 
 -- | Adds a single `Transition` to a given `StateMachine`. Recommended to use
 -- `addTransitions` for bulk additions as this uses the slower `updateVector`.
-addTransition :: (StateLike s, Ord l, Monoid e) => Transition l e -> StateMachine l s e -> Error (StateMachine l s e)
+addTransition :: (StateLike s, Ord l, Semigroup e) => Transition l e -> StateMachine l s e -> Error (StateMachine l s e)
 addTransition t sm@StateMachine {..} = do
   (ss, (l, se)) <- addTransitions' t sm
   m <- maybeToEither "Could not find start state (addTransition)" $ transitions !? ss
@@ -236,7 +236,7 @@ addTransition t sm@StateMachine {..} = do
 
 -- | A helper function for `addTransitions` that turns a single `Transition` into a nested
 -- tuple for use in `addTransitions`.
-addTransitions' :: (StateLike s, Ord l, Monoid e) => Transition l e -> StateMachine l s e -> Error (StateID, (l, (s StateID, e)))
+addTransitions' :: (StateLike s, Ord l, Semigroup e) => Transition l e -> StateMachine l s e -> Error (StateID, (l, (s StateID, e)))
 addTransitions' Transition {..} StateMachine {..} = do
   ss <- lookupEither' ("Could not locate startStateT " ++ show startStateT ++ " (addTransitions')") startStateT namesToNumbers
   es <- lookupEither' ("Could not locate endStateT " ++ show endStateT ++ " (addTransitions')") endStateT namesToNumbers
@@ -254,7 +254,7 @@ addTransitions' Transition {..} StateMachine {..} = do
 
 -- | Takes a list of `Transition`s and a `StateMachine`, and returns a `StateMachine`
 -- updated with those transitions.
-addTransitions :: (StateLike s, Ord l, Monoid e) => [Transition l e] -> StateMachine l s e -> Error (StateMachine l s e)
+addTransitions :: (StateLike s, Ord l, Semigroup e) => [Transition l e] -> StateMachine l s e -> Error (StateMachine l s e)
 addTransitions ts sm@StateMachine {..} = do
   tups <- mapM (`addTransitions'` sm) ts
   let v = transitions V.// M.toList (foldr hFunc M.empty tups)
@@ -274,7 +274,7 @@ addTransitions ts sm@StateMachine {..} = do
 -- of type e
 -- - the start state
 -- - the accept states
-constructStateMachine :: (Ord l, StateLike s, Monoid e) => String -> Set l -> Set State -> [Transition l e] -> State -> Set State -> StepFunction l s e -> Error (StateMachine l s e)
+constructStateMachine :: (Ord l, StateLike s, Semigroup e) => String -> Set l -> Set State -> [Transition l e] -> State -> Set State -> StepFunction l s e -> Error (StateMachine l s e)
 constructStateMachine name' language' states' transitions' startState' acceptStates' step'' = do
   acceptStatesList <- mapM (\s -> lookupEither' ("Could not find accept state " ++ show s) s namesToNumbers') (S.toList (S.delete Dead acceptStates'))
   startStateID' <- lookupEither' ("Could not find start state " ++ show startState') startState' namesToNumbers'
@@ -300,21 +300,21 @@ inferStateMachine' conSM name' transitions' = conSM name' language' states' tran
 -- states from the transitions, and gets the language from the transitions too.
 --
 -- Check `constructStateMachine` to see how this works under the hood.
-inferStateMachine :: (Ord l, StateLike s, Monoid e) => String -> [Transition l e] -> State -> Set State -> StepFunction l s e -> Error (StateMachine l s e)
+inferStateMachine :: (Ord l, StateLike s, Semigroup e) => String -> [Transition l e] -> State -> Set State -> StepFunction l s e -> Error (StateMachine l s e)
 inferStateMachine n ts ss as sf = inferStateMachine' (\name' language' states' transitions' startState' acceptStates' -> constructStateMachine name' language' states' transitions' startState' acceptStates' sf) n ts ss as
 
 -- | Type class to define the three functions needed to construct a `StateMachine`.
 -- Minimal definition requires `stepFunction`
 class ConsSM l s e where
   -- | The function that moves the state machine between states.
-  stepFunction :: (Ord l, Monoid e) => StepFunction l s e
+  stepFunction :: (Ord l, Semigroup e) => StepFunction l s e
 
   -- | How to construct this state machine from scratch
-  consSM :: (Ord l, StateLike s, Monoid e) => String -> Set l -> Set State -> [Transition l e] -> State -> Set State -> Error (StateMachine l s e)
+  consSM :: (Ord l, StateLike s, Semigroup e) => String -> Set l -> Set State -> [Transition l e] -> State -> Set State -> Error (StateMachine l s e)
   consSM name' language' states' transitions' startState' acceptStates' = constructStateMachine name' language' states' transitions' startState' acceptStates' stepFunction
 
   -- | How to infer this state machine from scratch
-  inferSM :: (Ord l, StateLike s, Monoid e) => String -> [Transition l e] -> State -> Set State -> Error (StateMachine l s e)
+  inferSM :: (Ord l, StateLike s, Semigroup e) => String -> [Transition l e] -> State -> Set State -> Error (StateMachine l s e)
   inferSM = inferStateMachine' consSM
 
 -- | How to create a deterministic `StateMachine` such as `Data.StateMachines.DFA.DFA`s or

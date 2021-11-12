@@ -85,7 +85,7 @@ instance Peekable [] where
 
 -- | A type alias for a function that determines whether the machine
 -- should halt.
-type HaltingFunction f l s e = s StateID -> e -> f l -> StateMachine l s e -> ReturnValue
+type HaltingFunction f l s e = s StateID -> Maybe e -> f l -> StateMachine l s e -> ReturnValue
 
 -- | The data type that contains a running state machine, as well as all
 -- the state required to continue execution of the state machine.
@@ -99,12 +99,12 @@ data RunningSM f l s e = RunSM
     returnValue :: ReturnValue,
     remainingIter :: Clock,
     stateMachine :: !(StateMachine l s e),
-    modifyTape :: e -> f l -> f l,
+    modifyTape :: Maybe e -> f l -> f l,
     halting :: HaltingFunction f l s e
   }
 
 instance
-  (Show (f l), Show l, Show (s StateID), Show e, StateLike s, Monoid e, Peekable f) =>
+  (Show (f l), Show l, Show (s StateID), Show e, StateLike s, Semigroup e, Peekable f) =>
   Show
     (RunningSM f l s e)
   where
@@ -139,7 +139,7 @@ updateStateMachine :: StateMachine l s e -> RunningSM f l s e -> RunningSM f l s
 updateStateMachine v rsm = rsm {stateMachine = v}
 
 -- | Overwrites the `modifyTape` function in a given `RunningSM`.
-updateModifyTape :: (e -> f l -> f l) -> RunningSM f l s e -> RunningSM f l s e
+updateModifyTape :: (Maybe e -> f l -> f l) -> RunningSM f l s e -> RunningSM f l s e
 updateModifyTape v rsm = rsm {modifyTape = v}
 
 -- | Overwrites the `halting` function in a given `RunningSM`.
@@ -158,7 +158,7 @@ constructRunningSM ::
   f l ->
   Clock ->
   StateMachine l s e ->
-  (e -> f l -> f l) ->
+  (Maybe e -> f l -> f l) ->
   HaltingFunction f l s e ->
   RunningSM f l s e
 constructRunningSM tape' iter sm =

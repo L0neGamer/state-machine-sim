@@ -24,7 +24,7 @@ import Data.Foldable (Foldable (toList))
 import Data.List (genericTake)
 import Data.Set as S (empty, singleton)
 import Data.StateMachines.DFA (DFA, RunDFAResult, runDFA)
-import Data.StateMachines.Internal (Error)
+import Data.StateMachines.Internal (Const (..), Error, fromConst)
 import Data.StateMachines.RunStateMachine
   ( Clock (time),
     RunningSM (remainingIter, tape),
@@ -84,25 +84,14 @@ emptyDFA = consSM "empty DFA" S.empty (S.singleton q0) [] q0 S.empty
 --- BusyBeaver testing (turing machines)
 -- see https://en.wikipedia.org/wiki/Busy_beaver#Examples
 
-newtype BBInteger = BB Integer deriving (Eq, Ord, Show)
-
-instance Semigroup BBInteger where
-  (<>) = const
-
-instance Monoid BBInteger where
-  mempty = BB 0
-
-fromBBInteger :: BBInteger -> Integer
-fromBBInteger (BB i) = i
-
 -- | A convenient way to store data about busy beaver machines. Stores the number of 1s
 -- produced, the number of steps required, and the machine which should achieve those.
-type BusyBeaverStore = (Integer, Integer, TuringMachine BBInteger)
+type BusyBeaverStore = (Integer, Integer, TuringMachine (Const Integer))
 
 -- | A utility function so that the old format for the busy beavers can be reused.
 convOldFormNewForm ::
-  (State, State, (Integer, Integer, TapeDir)) -> TuringMachineTransition BBInteger
-convOldFormNewForm (s, s', (a, e, e')) = Transition s s' (BB a) (BB e, e')
+  (State, State, (Integer, Integer, TapeDir)) -> TuringMachineTransition (Const Integer)
+convOldFormNewForm (s, s', (a, e, e')) = Transition s s' (Const a) (Const e, e')
 
 -- | A turing machine that outputs six 1's over 14 steps.
 busyBeaver3State :: Error BusyBeaverStore
@@ -167,13 +156,13 @@ busyBeaver5State = do
 -- true, then the check was performed successfully. The end
 -- `Data.StateMachines.TuringMachine.RunTuringMachine` is also returned if manual
 -- inspection is wanted.
-busyBeaverCheck :: BusyBeaverStore -> (Bool, Bool, RunTuringMachine BBInteger)
+busyBeaverCheck :: BusyBeaverStore -> (Bool, Bool, RunTuringMachine (Const Integer))
 busyBeaverCheck (ones, steps, tm) = (ones == tapeSum, steps == timeSpent, runMachine)
   where
-    runMachine' = runTuringMachine (blankTape (BB 0)) (clock 0) tm
+    runMachine' = runTuringMachine (blankTape (Const 0)) (clock 0) tm
     (_, runMachine) = extractErrorAndMachine runMachine'
     timeSpent = time (remainingIter runMachine)
-    tape' = fromBBInteger <$> tape runMachine
+    tape' = fromConst <$> tape runMachine
     tapeSum =
       sum (genericTake (timeSpent - cursor tape') $ toList (right tape'))
         + sum (genericTake (timeSpent + cursor tape') $ toList (left tape'))
