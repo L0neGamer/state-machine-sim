@@ -53,8 +53,6 @@ instance Semigroup (Const a) where
 fromConst :: Const a -> a
 fromConst (Const a) = a
 
--- instance
-
 -- TODO: https://archives.haskell.org/projects.haskell.org/diagrams/tutorials.html
 -- -- or https://discordapp.com/channels/195989586260918272/222003210670440451/709816458921640057
 
