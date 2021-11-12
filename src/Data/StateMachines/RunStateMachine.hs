@@ -19,6 +19,7 @@ module Data.StateMachines.RunStateMachine
     RunningSM (..),
     constructRunningSM,
     runSM,
+    runSM',
     updateTape,
     updateCurrentState,
     updateReturnValue,
@@ -149,9 +150,6 @@ updateModifyTape v rsm = rsm {modifyTape = v}
 updateHalting :: HaltingFunction f l s e -> RunningSM f l s e -> RunningSM f l s e
 updateHalting v rsm = rsm {halting = v}
 
-checkMachineHalting :: RunningSM f l s e -> Error ReturnValue
-checkMachineHalting RunSM {..} = returnValueCheckClock returnValue remainingIter
-
 -- | Constructs a `RunningSM` from:
 -- - `Peekable` data structure @f@ containing values of type @l@
 -- - a `Clock`
@@ -182,35 +180,24 @@ runSM' :: (Peekable f, StateLike s) => State (RunningSM f l s e) (Error ReturnVa
 runSM' = do
   sm <- gets stateMachine
   t <- gets tape <&> peek
-  if isLeft t
-    then return $ toLeft t
-    else do
-      currentState' <- gets currentState
-      let t' = unsafeFromRight t
-          se = step sm currentState' t' sm
-      if isLeft se
-        then return $ toLeft se
-        else do
-          let (s, e) = unsafeFromRight se
-          modify $ \rsm -> updateTape (modifyTape rsm e (tape rsm)) rsm
-          modify $ \rsm -> updateRemainingIter (tickClock (remainingIter rsm)) rsm
-          rv <- do
-            halting' <- gets halting
-            tape' <- gets tape
-            remainingIter' <- gets remainingIter
-            return $ returnValueCheckClock (halting' s e tape' sm) remainingIter'
-          if isLeft rv
-            then return $ toLeft rv
-            else do
-              let rv' = unsafeFromRight rv
-              modify $ updateReturnValue rv'
-              if isTerm rv'
-                then return $ return rv'
-                else runSM'
+  func t $ \t' -> do
+    currentState' <- gets currentState
+    let se = step sm currentState' t' sm
+    func se $ \(s, e) -> do
+      modify $ updateCurrentState s
+      modify $ \rsm -> updateTape (modifyTape rsm e (tape rsm)) rsm
+      modify $ \rsm -> updateRemainingIter (tickClock (remainingIter rsm)) rsm
+      rv <- do
+        halting' <- gets halting
+        tape' <- gets tape
+        remainingIter' <- gets remainingIter
+        return $ returnValueCheckClock (halting' s e tape' sm) remainingIter'
+      func rv $ \rv' -> do
+        modify $ updateReturnValue rv'
+        if isTerm rv'
+          then return $ return rv'
+          else runSM'
   where
-    unsafeFromRight (Right b) = b
-    unsafeFromRight _ = error "using unsafeFromRight unsafely!"
-    toLeft (Left a) = Left a
     func (Left a) _ = return $ Left a
     func (Right a) f = f a
 

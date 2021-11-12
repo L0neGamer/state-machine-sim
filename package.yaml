@@ -33,6 +33,7 @@ dependencies:
   - fgl
   - SVGFonts
   - either
+  - mtl
 
 library:
   source-dirs: src
