@@ -17,10 +17,10 @@ module Data.StateMachines.Internal
   )
 where
 
-import Data.Either.Extra (maybeToEither)
 import Data.Map as M (Map, lookup)
 import Data.Vector as V (Vector, modify)
 import Data.Vector.Generic.Mutable (write)
+import Data.Either.Combinators (maybeToRight)
 
 -- | The error type - useful for designating when something can error, and bubbling it up.
 type Error a = Either String a
@@ -33,7 +33,7 @@ lookupEither k = lookupEither' k k
 -- | Looks up key @k@ in the @Map k v@, returning @Right v@ if the key is found and
 -- returning @Left s@ if the key is not found.
 lookupEither' :: (Ord k) => s -> k -> Map k v -> Either s v
-lookupEither' s k = maybeToEither s . M.lookup k
+lookupEither' s k = maybeToRight s . M.lookup k
 
 -- | Updates the index of the given vector with the given value.
 --

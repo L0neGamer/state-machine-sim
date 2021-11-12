@@ -1,7 +1,7 @@
 name: state-machine-sim
 version: 0.1.0.0
 github: "L0neGamer/state-machine-sim"
-license: BSD3
+license: "BSD3"
 author: "L0neGamer"
 maintainer: "L0neGamer"
 copyright: "L0neGamer"
@@ -23,7 +23,6 @@ dependencies:
   - base >= 4.7 && < 5
   - containers
   - vector
-  - extra
   - diagrams
   - diagrams-core
   - diagrams-lib
@@ -33,6 +32,7 @@ dependencies:
   - diagrams-graphviz
   - fgl
   - SVGFonts
+  - either
 
 library:
   source-dirs: src
@@ -51,8 +51,10 @@ library:
     - RankNTypes
     - TypeApplications
     - MultiWayIf
+    - BangPatterns
   ghc-options:
     - -Wall
+    - -O2
 
 executables:
   state-machine-sim-exe:
@@ -63,8 +65,10 @@ executables:
       - -threaded
       - -rtsopts
       - -with-rtsopts=-N
+      - -O2
     dependencies:
       - state-machine-sim
+      - directory
 
 tests:
   state-machine-sim-test:

@@ -13,11 +13,12 @@ import Data.StateMachines.Examples
     exampleDFA,
     runExampleDFA,
   )
-import Data.StateMachines.Internal (Error)
+import Data.StateMachines.Internal (Const (..), Error)
 import Data.StateMachines.Regex (checkString, regexStrToNFA)
-import Data.StateMachines.RunStateMachine (extractResult)
+import Data.StateMachines.RunStateMachine (clock, extractResult)
 import Data.StateMachines.StateMachine (name)
-import System.Directory.Extra (getCurrentDirectory)
+import Data.StateMachines.TuringMachine (blankTape, runTuringMachine)
+import System.Directory (getCurrentDirectory)
 
 main :: IO ()
 main = do
@@ -31,13 +32,15 @@ main = do
   print $ busyBeaver3State <&> busyBeaverCheck
   print $ busyBeaver4State <&> busyBeaverCheck
   -- print $ busyBeaver5State <&> busyBeaverCheck -- WARNING - takes a long time!!
+  print $ busyBeaver5State >>= \bb -> return $ runTuringMachine (blankTape (Const 0)) (clock 0) (thd bb)
   print $ exampleDFA <&> convertDFAToNFA
-  mapM_ test exampleDFA
-  mapM_ test (regexStrToNFA "hel*o the(re|ba)*")
-  mapM_ (\(_, _, sm) -> test sm) busyBeaver3State
-  mapM_ (\(_, _, sm) -> test sm) busyBeaver5State
+  -- mapM_ test exampleDFA
+  -- mapM_ test (regexStrToNFA "hel*o the(re|ba)*")
+  -- mapM_ (\(_, _, sm) -> test sm) busyBeaver3State
+  -- mapM_ (\(_, _, sm) -> test sm) busyBeaver5State
   print "main_end"
   where
     test sm = do
       curDir <- getCurrentDirectory
       drawStateMachineTo (curDir ++ "/" ++ name sm ++ ".svg") 500 sm
+    thd (_, _, c) = c

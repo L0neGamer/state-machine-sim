@@ -16,7 +16,7 @@ module Data.StateMachines.NFA
   )
 where
 
-import Data.Either.Extra (maybeToEither)
+import Data.Either.Combinators (maybeToRight)
 import Data.Map as M (lookup)
 import Data.Maybe (mapMaybe)
 import Data.Set as S
@@ -90,7 +90,7 @@ expandEpsilon ss nfa@StateMachine {..} = do
   let ss' = S.unions $ mapMaybe (fmap fst . M.lookup Epsilon) ms
   if ss' `S.isSubsetOf` ss then return ss else expandEpsilon (S.union ss ss') nfa
   where
-    stepEpsilons s = maybeToEither "Could not find state (expandEpsilon)" (transitions !? s)
+    stepEpsilons s = maybeToRight "Could not find state (expandEpsilon)" (transitions !? s)
 
 -- | Type class for constructin `NFA`s.
 instance Ord l => ConsSM (NFAData l) Set () where

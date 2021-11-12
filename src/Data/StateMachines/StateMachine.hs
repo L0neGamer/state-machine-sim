@@ -19,7 +19,6 @@ module Data.StateMachines.StateMachine
     ConsSM (..),
     StepFunction,
     step',
-    deterministicStep,
     updateName,
     updateLanguage,
     updateTransitions,
@@ -33,9 +32,9 @@ module Data.StateMachines.StateMachine
   )
 where
 
+import Data.Either.Combinators (maybeToRight)
 import Control.Monad (when)
 import Data.Bifunctor (Bifunctor (bimap))
-import Data.Either.Extra (maybeToEither)
 import Data.Functor.Identity (Identity (Identity))
 import Data.Map as M
   ( Map,
@@ -99,6 +98,7 @@ class StateLike s where
 
   -- | How to put a new item into an existing `StateLike` data type. Prefer the new item.
   combineStates :: Ord a => a -> s a -> s a
+  combineStates a = combineStateLike (fromSingle a)
 
   -- | How to combine two `StateLike` data types (if they are the same). Prefer the first
   -- `StateLike`.
@@ -112,7 +112,6 @@ class StateLike s where
 
 instance StateLike Set where
   fromSingle = singleton
-  combineStates s ss = S.insert s ss
   combineStateLike = S.union
   toSet = id
   isSingle (S.toList -> [_]) = True
@@ -120,7 +119,6 @@ instance StateLike Set where
 
 instance StateLike Identity where
   fromSingle = Identity
-  combineStates s _ = Identity s
   combineStateLike = const
   toSet (Identity s) = S.singleton s
   isSingle _ = True
@@ -211,7 +209,7 @@ getStatesAndLang = foldr combine (S.empty, S.empty)
 step' :: (Ord l, StateLike s, Semigroup e) => StateID -> l -> StateMachine l s e -> Error (s StateID, Maybe e)
 step' sid l sm
   | sid >= 0 = do
-    m <- maybeToEither "Could not find state (step)" (t !? sid)
+    m <- maybeToRight "Could not find state (step)" (t !? sid)
     interpretNothing $ M.lookup l m
   | otherwise = interpretNothing Nothing
   where
@@ -219,18 +217,12 @@ step' sid l sm
     interpretNothing Nothing = return (fromSingle (namesToNumbers sm M.! Dead), Nothing)
     interpretNothing (Just (s, e)) = return (s, Just e)
 
--- | Runs a step of the given deterministic `StateMachine` (that is, a state machine that
--- only goes to one state on each step, where the `StateLike` container is Identity).
--- This is used in both `Data.StateMachines.DFA` and `Data.StateMachines.TuringMachine`, as both of these machines are fully deterministic.
-deterministicStep :: (Ord l, Semigroup e) => StepFunction l Identity e
-deterministicStep (Identity s) = step' s
-
 -- | Adds a single `Transition` to a given `StateMachine`. Recommended to use
 -- `addTransitions` for bulk additions as this uses the slower `updateVector`.
 addTransition :: (StateLike s, Ord l, Semigroup e) => Transition l e -> StateMachine l s e -> Error (StateMachine l s e)
 addTransition t sm@StateMachine {..} = do
   (ss, (l, se)) <- addTransitions' t sm
-  m <- maybeToEither "Could not find start state (addTransition)" $ transitions !? ss
+  m <- maybeToRight "Could not find start state (addTransition)" $ transitions !? ss
   ts <- updateVector ss (M.insert l se m) transitions
   return $ updateTransitions ts sm
 
@@ -243,7 +235,7 @@ addTransitions' Transition {..} StateMachine {..} = do
   let l = characterT
       e = outputT
   when (l `S.notMember` language) $ Left "Character not in language"
-  m <- maybeToEither "Could not find start state (addTransition)" $ transitions !? ss
+  m <- maybeToRight "Could not find start state (addTransition)" $ transitions !? ss
   let combined
         | l `M.member` m = bimap (combineStates es) (e <>) (m M.! l)
         | otherwise = (fromSingle es, e)

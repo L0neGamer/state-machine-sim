@@ -117,9 +117,6 @@ instance Peekable Tape where
 instance (Eq a) => Eq (Tape a) where
   (Tape right left cursor) == (Tape right' left' cursor') = cursor == cursor' && zip (toList right) (toList left) == zip (toList right') (toList left')
 
-instance (Ord a) => Ord (Tape a) where
-  (Tape right left cursor) <= (Tape right' left' cursor') = cursor <= cursor' && zip (toList right) (toList left) <= zip (toList right') (toList left')
-
 -- | Constructs a `Tape` that is entirely the given value.
 blankTape :: a -> Tape a
 blankTape a = fmap (const a) (Tape nullStream nullStream 0)
