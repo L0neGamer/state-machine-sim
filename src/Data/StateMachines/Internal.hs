@@ -17,10 +17,10 @@ module Data.StateMachines.Internal
   )
 where
 
+import Data.Either.Combinators (maybeToRight)
 import Data.Map as M (Map, lookup)
 import Data.Vector as V (Vector, modify)
 import Data.Vector.Generic.Mutable (write)
-import Data.Either.Combinators (maybeToRight)
 
 -- | The error type - useful for designating when something can error, and bubbling it up.
 type Error a = Either String a

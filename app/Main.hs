@@ -32,7 +32,7 @@ main = do
   print $ busyBeaver3State <&> busyBeaverCheck
   print $ busyBeaver4State <&> busyBeaverCheck
   -- print $ busyBeaver5State <&> busyBeaverCheck -- WARNING - takes a long time!!
-  print $ busyBeaver5State >>= \bb -> return $ runTuringMachine (blankTape (Const 0)) (clock 0) (thd bb)
+  -- print $ busyBeaver5State >>= \bb -> return $ runTuringMachine (blankTape (Const 0)) (clock 0) (thd bb)
   print $ exampleDFA <&> convertDFAToNFA
   -- mapM_ test exampleDFA
   -- mapM_ test (regexStrToNFA "hel*o the(re|ba)*")

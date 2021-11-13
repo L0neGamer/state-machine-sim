@@ -32,9 +32,9 @@ module Data.StateMachines.StateMachine
   )
 where
 
-import Data.Either.Combinators (maybeToRight)
 import Control.Monad (when)
 import Data.Bifunctor (Bifunctor (bimap))
+import Data.Either.Combinators (maybeToRight)
 import Data.Functor.Identity (Identity (Identity))
 import Data.Map as M
   ( Map,
