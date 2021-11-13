@@ -1,3 +1,5 @@
+{-# LANGUAGE UndecidableInstances #-}
+
 -- |
 -- Module      :  Data.StateMachines.RunStateMachine
 -- License     :  BSD3
@@ -19,7 +21,6 @@ module Data.StateMachines.RunStateMachine
     RunningSM (..),
     constructRunningSM,
     runSM,
-    runSM',
     updateTape,
     updateCurrentState,
     updateReturnValue,
@@ -31,8 +32,7 @@ module Data.StateMachines.RunStateMachine
 where
 
 import Control.Monad.State
-import Data.Either (fromRight, isLeft)
-import Data.Functor
+import Data.Functor ((<&>))
 import Data.StateMachines.Internal (Error)
 import Data.StateMachines.StateMachine (StateID, StateLike (fromSingle), StateMachine (..))
 
@@ -173,62 +173,43 @@ constructRunningSM tape' iter sm =
     iter
     sm
 
--- | A type alias to more concisely work with the result of running a state machine. The alias is for @Either (String, `RunningSM` f l s e) (`RunningSM` f l s e)@.
+-- | A type alias to more concisely work with the result of running a state machine. The 
+-- alias is for @Either (String, `RunningSM` f l s e) (`RunningSM` f l s e)@.
 type RunSMResult f l s e = Either (String, RunningSM f l s e) (RunningSM f l s e)
 
+-- | The `Control.Monad.State.State` of running a `RunningSM`.
 runSM' :: (Peekable f, StateLike s) => State (RunningSM f l s e) (Error ReturnValue)
 runSM' = do
   sm <- gets stateMachine
   t <- gets tape <&> peek
-  func t $ \t' -> do
+  ifNotError t $ \t' -> do
     currentState' <- gets currentState
-    let se = step sm currentState' t' sm
-    func se $ \(s, e) -> do
-      modify $ updateCurrentState s
-      modify $ \rsm -> updateTape (modifyTape rsm e (tape rsm)) rsm
-      modify $ \rsm -> updateRemainingIter (tickClock (remainingIter rsm)) rsm
-      rv <- do
-        halting' <- gets halting
-        tape' <- gets tape
-        remainingIter' <- gets remainingIter
-        return $ returnValueCheckClock (halting' s e tape' sm) remainingIter'
-      func rv $ \rv' -> do
+    let cse = step sm currentState' t' sm
+    ifNotError cse $ \(cs, e) -> do
+      modify $ updateRSM cs e
+      RunSM {halting = halting', tape = tape', remainingIter = remainingIter'} <- get
+      let rv = returnValueCheckClock (halting' cs e tape' sm) remainingIter'
+      ifNotError rv $ \rv' -> do
         modify $ updateReturnValue rv'
         if isTerm rv'
           then return $ return rv'
           else runSM'
   where
-    func (Left a) _ = return $ Left a
-    func (Right a) f = f a
+    ifNotError (Left a) _ = return $ Left a
+    ifNotError (Right a) f = f a
+    updateRSM cs e rsm@RunSM{..} = updateCurrentState cs $ updateTape (modifyTape e tape) $ updateRemainingIter (tickClock remainingIter) rsm
 
--- | Runs a given `RunningSM` to completion or error.
+-- | Runs a given `RunningSM` to completion or error. Uses the `Control.Monad.State.State`
+-- monad under the hood, which can be seen in `runSM'`.
 runSM ::
   (Peekable f, StateLike s) =>
   RunningSM f l s e ->
   RunSMResult f l s e
-runSM rsm@RunSM {stateMachine = sm@StateMachine {..}, ..} = do
-  -- get the value to act on
-  t <- leftWrap $ peek tape
-  -- perform a step
-  (s, e) <- leftWrap $ step currentState t sm
-  -- based on the values retrieved, modify the tape and the clock
-  let tape' = modifyTape e tape
-      remainingIter' = tickClock remainingIter
-  -- check if the clock has overrun, or if the machine is in a halting state
-  returnValue' <-
-    leftWrap $
-      returnValueCheckClock (halting s e tape' sm) remainingIter'
-  -- update the running state machine with the new tape, current state, clock, and return
-  -- value
-  let rsm' =
-        updateReturnValue returnValue' $
-          updateRemainingIter remainingIter' $
-            updateCurrentState s $
-              updateTape tape' rsm
-  if isTerm returnValue' then return rsm' else runSM rsm'
+runSM rsm = case rv of
+  Left s -> Left (s, rsm')
+  Right _ -> Right rsm'
   where
-    leftWrap (Left s) = Left (s, rsm)
-    leftWrap (Right r) = return r
+    (rv, rsm') = runState runSM' rsm
 
 -- | Takes a `RunSMResult` and returns either its error or the `ReturnValue`
 -- in the successful run.

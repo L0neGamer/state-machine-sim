@@ -12,7 +12,7 @@ module Data.StateMachines.DFA
     RunDFA,
     RunDFAResult,
     runDFA,
-    getRunDFA
+    getRunDFA,
   )
 where
 
