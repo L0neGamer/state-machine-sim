@@ -1,5 +1,3 @@
-{-# LANGUAGE UndecidableInstances #-}
-
 -- |
 -- Module      :  Data.StateMachines.RunStateMachine
 -- License     :  BSD3
@@ -32,6 +30,12 @@ module Data.StateMachines.RunStateMachine
 where
 
 import Control.Monad.State
+  ( MonadState (get),
+    State,
+    gets,
+    modify,
+    runState,
+  )
 import Data.Functor ((<&>))
 import Data.StateMachines.Internal (Error)
 import Data.StateMachines.StateMachine (StateID, StateLike (fromSingle), StateMachine (..))
@@ -173,7 +177,7 @@ constructRunningSM tape' iter sm =
     iter
     sm
 
--- | A type alias to more concisely work with the result of running a state machine. The 
+-- | A type alias to more concisely work with the result of running a state machine. The
 -- alias is for @Either (String, `RunningSM` f l s e) (`RunningSM` f l s e)@.
 type RunSMResult f l s e = Either (String, RunningSM f l s e) (RunningSM f l s e)
 
@@ -197,7 +201,7 @@ runSM' = do
   where
     ifNotError (Left a) _ = return $ Left a
     ifNotError (Right a) f = f a
-    updateRSM cs e rsm@RunSM{..} = updateCurrentState cs $ updateTape (modifyTape e tape) $ updateRemainingIter (tickClock remainingIter) rsm
+    updateRSM cs e rsm@RunSM {..} = updateCurrentState cs $ updateTape (modifyTape e tape) $ updateRemainingIter (tickClock remainingIter) rsm
 
 -- | Runs a given `RunningSM` to completion or error. Uses the `Control.Monad.State.State`
 -- monad under the hood, which can be seen in `runSM'`.
