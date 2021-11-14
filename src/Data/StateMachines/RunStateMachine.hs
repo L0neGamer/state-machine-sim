@@ -201,7 +201,8 @@ runSM' = do
   where
     ifNotError (Left a) _ = return $ Left a
     ifNotError (Right a) f = f a
-    updateRSM cs e rsm@RunSM {..} = updateCurrentState cs $ updateTape (modifyTape e tape) $ updateRemainingIter (tickClock remainingIter) rsm
+    updateRSM cs e RunSM {..} = RunSM (modifyTape e tape) cs returnValue (tickClock remainingIter) stateMachine modifyTape halting
+      -- where !ret = updateCurrentState cs $ updateTape (modifyTape e tape) $ updateRemainingIter (tickClock remainingIter) rsm
 
 -- | Runs a given `RunningSM` to completion or error. Uses the `Control.Monad.State.State`
 -- monad under the hood, which can be seen in `runSM'`.

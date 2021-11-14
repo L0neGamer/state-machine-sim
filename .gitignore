@@ -7,3 +7,4 @@ compprofile
 *.prof
 stack.yaml.lock
 *.svg
+compmemprofile
