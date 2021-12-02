@@ -39,6 +39,7 @@ import Control.Monad.State
 import Data.Functor ((<&>))
 import Data.StateMachines.Internal (Error)
 import Data.StateMachines.StateMachine (StateID, StateLike (fromSingle), StateMachine (..))
+import Data.Either.Combinators (isLeft)
 
 -- | A data type that stores a timer ticking upwards, either unbounded or
 -- bounded.
@@ -186,23 +187,74 @@ runSM' :: (Peekable f, StateLike s) => State (RunningSM f l s e) (Error ReturnVa
 runSM' = do
   sm <- gets stateMachine
   t <- gets tape <&> peek
-  ifNotError t $ \t' -> do
-    currentState' <- gets currentState
-    let cse = step sm currentState' t' sm
-    ifNotError cse $ \(cs, e) -> do
-      modify $ updateRSM cs e
-      RunSM {halting = halting', tape = tape', remainingIter = remainingIter'} <- get
-      let rv = returnValueCheckClock (halting' cs e tape' sm) remainingIter'
-      ifNotError rv $ \rv' -> do
-        modify $ updateReturnValue rv'
-        if isTerm rv'
-          then return $ return rv'
-          else runSM'
+  if isLeft t
+    then return $ toLeft t
+    else do
+      currentState' <- gets currentState
+      let t' = unsafeFromRight t
+          cse = step sm currentState' t' sm
+      if isLeft cse
+        then return $ toLeft cse
+        else do
+          let (cs, e) = unsafeFromRight cse
+          modify $ updateRSM cs e
+          RunSM {halting = halting', tape = tape', remainingIter = remainingIter'} <- get
+          let rv = returnValueCheckClock (halting' cs e tape' sm) remainingIter'
+          if isLeft rv
+            then return $ toLeft rv
+            else do
+              let rv' = unsafeFromRight rv
+              modify $ updateReturnValue rv'
+              if isTerm rv'
+                then return $ return rv'
+                else runSM'
   where
-    ifNotError (Left a) _ = return $ Left a
-    ifNotError (Right a) f = f a
+    -- ifNotError (Left a) _ = return $ Left a
+    -- ifNotError (Right a) f = f a
     updateRSM cs e RunSM {..} = RunSM (modifyTape e tape) cs returnValue (tickClock remainingIter) stateMachine modifyTape halting
+    unsafeFromRight (Right b) = b
+    unsafeFromRight _ = error "using unsafeFromRight unsafely!"
+    toLeft (Left a) = Left a
+    func (Left a) _ = return $ Left a
+    func (Right a) f = f a
       -- where !ret = updateCurrentState cs $ updateTape (modifyTape e tape) $ updateRemainingIter (tickClock remainingIter) rsm
+
+-- runSM' = do
+--   sm <- gets stateMachine
+--   t <- gets tape <&> peek
+--   if isLeft t
+--     then return $ toLeft t
+--     else do
+--       currentState' <- gets currentState
+--       let t' = unsafeFromRight t
+--           se = step sm currentState' t' sm
+--       if isLeft se
+--         then return $ toLeft se
+--         else do
+--           let (s, e) = unsafeFromRight se
+--           modify $ \rsm -> updateTape (modifyTape rsm e (tape rsm)) rsm
+--           modify $ \rsm -> updateRemainingIter (tickClock (remainingIter rsm)) rsm
+--           rv <- do
+--             halting' <- gets halting
+--             tape' <- gets tape
+--             remainingIter' <- gets remainingIter
+--             return $ returnValueCheckClock (halting' s e tape' sm) remainingIter'
+--           if isLeft rv
+--             then return $ toLeft rv
+--             else do
+--               let rv' = unsafeFromRight rv
+--               modify $ updateReturnValue rv'
+--               if isTerm rv'
+--                 then return $ return rv'
+--                 else runSM'
+--   where
+--     isLeft (Left _) = True
+--     isLeft _ = False 
+--     unsafeFromRight (Right b) = b
+--     unsafeFromRight _ = error "using unsafeFromRight unsafely!"
+--     toLeft (Left a) = Left a
+--     func (Left a) _ = return $ Left a
+--     func (Right a) f = f a
 
 -- | Runs a given `RunningSM` to completion or error. Uses the `Control.Monad.State.State`
 -- monad under the hood, which can be seen in `runSM'`.
