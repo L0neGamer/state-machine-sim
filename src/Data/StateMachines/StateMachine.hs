@@ -174,8 +174,10 @@ instance (Show l, Show (s StateID), Show e, StateLike s, Semigroup e) => Show (S
   show StateMachine {..} =
     "StateMachine "
       ++ show name
-      ++ show language
+      ++ " "
+      ++ contained language
       ++ show transitions
+      ++ " "
       ++ contained startStateID
       ++ contained acceptStateIDs
       ++ show namesToNumbers
@@ -209,7 +211,7 @@ getStatesAndLang = foldr combine (S.empty, S.empty)
 step' :: (Ord l, StateLike s, Semigroup e) => StateID -> l -> StateMachine l s e -> Error (s StateID, Maybe e)
 step' sid l sm
   | sid >= 0 = do
-    m <- maybeToRight "Could not find state (step)" (t !? sid)
+    m <- maybeToRight ("Could not find state (step): " ++ show sid) (t !? sid)
     interpretNothing $ M.lookup l m
   | otherwise = interpretNothing Nothing
   where

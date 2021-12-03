@@ -12,6 +12,7 @@ module Data.StateMachines.Examples
   ( emptyDFA,
     exampleDFA,
     runExampleDFA,
+    helloThereRegexNFA,
     BusyBeaverStore,
     busyBeaver3State,
     busyBeaver4State,
@@ -25,6 +26,8 @@ import Data.List (genericTake)
 import Data.Set as S (empty, singleton)
 import Data.StateMachines.DFA (DFA, RunDFAResult, runDFA)
 import Data.StateMachines.Internal (Const (..), Error, fromConst)
+import Data.StateMachines.NFA (NFA)
+import Data.StateMachines.Regex (regexStrToNFA)
 import Data.StateMachines.RunStateMachine
   ( Clock (time),
     RunningSM (remainingIter, tape),
@@ -80,6 +83,11 @@ runExampleDFA inp = runDFA inp (clock 100) <$> exampleDFA
 -- | This simple DFA accepts no input.
 emptyDFA :: Ord a => Error (DFA a)
 emptyDFA = consSM "empty DFA" S.empty (S.singleton q0) [] q0 S.empty
+
+--- NFA and REGEX testing
+
+helloThereRegexNFA :: Error (NFA Char)
+helloThereRegexNFA = regexStrToNFA "hel*o the(re|ba)*"
 
 --- BusyBeaver testing (turing machines)
 -- see https://en.wikipedia.org/wiki/Busy_beaver#Examples

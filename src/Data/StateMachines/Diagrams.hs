@@ -119,7 +119,7 @@ stateMachineToGraph mapNumbersToNames StateMachine {..} =
     (S.toList states)
     (convertTransitions transitions mapNumbersToNames)
   where
-    states = S.insert Dead $ S.fromList $ mapNumbersToNames [0 .. length transitions -1]
+    states = S.insert Dead $ S.fromList $ mapNumbersToNames [0 .. length transitions - 1]
 
 -- | Convert a given `Data.StateMachines.StateMachine.StateMachine` into a `Diagram`.
 -- This uses a lot of custom functions, so please investigate at your own risk.

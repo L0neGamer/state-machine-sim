@@ -1,7 +1,7 @@
 module Main where
 
 import Data.Functor ((<&>))
-import Data.StateMachines.Convert (convertDFAToNFA)
+import Data.StateMachines.Convert (convertDFAToNFA, convertNFAToDFA)
 import Data.StateMachines.DFA (DFA)
 import Data.StateMachines.Diagrams (drawStateMachineTo)
 import Data.StateMachines.Examples
@@ -11,6 +11,7 @@ import Data.StateMachines.Examples
     busyBeaverCheck,
     emptyDFA,
     exampleDFA,
+    helloThereRegexNFA,
     runExampleDFA,
   )
 import Data.StateMachines.Internal (Const (..), Error)
@@ -26,7 +27,7 @@ main = do
   print (emptyDFA :: Error (DFA Int))
   print $ extractResult <$> runExampleDFA [1, 0, 1, 1, 1, 1] -- fails
   print $ extractResult <$> runExampleDFA [1, 0, 1, 1, 1, 1, 0] -- succeeds
-  print $ regexStrToNFA "hel*o the(re|ba)*"
+  print helloThereRegexNFA
   print $ checkString "hello therebarereba" "hel*o the(re|ba)*" -- succeeds
   -- the first two values for all of these should be 0
   print $ busyBeaver3State <&> busyBeaverCheck
@@ -38,6 +39,8 @@ main = do
   -- mapM_ test (regexStrToNFA "hel*o the(re|ba)*")
   -- mapM_ (\(_, _, sm) -> test sm) busyBeaver3State
   -- mapM_ (\(_, _, sm) -> test sm) busyBeaver5State
+  -- mapM_ test helloThereRegexNFA
+  -- mapM_ test (helloThereRegexNFA >>= convertNFAToDFA)
   print "main_end"
   where
     test sm = do
