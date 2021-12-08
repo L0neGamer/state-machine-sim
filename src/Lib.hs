@@ -22,7 +22,7 @@ type Transition a = (State, State, a)
 type Transitions a = [Transition a]
 
 tickClock :: Clock -> Clock
-tickClock (I i j) = I (i -1) j
+tickClock (I i j) = I (i - 1) j
 tickClock (Infinite i) = Infinite (i + 1)
 
 clock :: Integer -> Clock
