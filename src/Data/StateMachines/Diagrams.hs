@@ -20,7 +20,7 @@ import Data.StateMachines.StateMachine
     StateID,
     StateLike (..),
     StateMachine (..),
-    stateName',
+    stateName,
   )
 import Data.Tuple (swap)
 import qualified Data.Vector as V
@@ -84,7 +84,7 @@ import Graphics.SVGFonts (fit_height, set_envelope, svgText)
 -- | Draw a node based on the given state and colour.
 node' :: State -> Colour Double -> Diagram B
 node' internalName colour =
-  text (stateName' internalName) # fontSizeL 17
+  text (stateName internalName) # fontSizeL (18 - min 13 (fromIntegral $ length (stateName internalName)))
     # fc black <> circle 19
     # named internalName
     # fc colour

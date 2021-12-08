@@ -214,7 +214,7 @@ regexStrToNFA str = do
   regex <- strToParsedRegex str
   let (start, end, xs) = regexToNFA regex 0
   inferSM
-    ("regex NFA `" ++ str ++ "`")
+    ("regex NFA '" ++ str ++ "'")
     xs
     (stateFromInteger start)
     (S.singleton $ stateFromInteger end)

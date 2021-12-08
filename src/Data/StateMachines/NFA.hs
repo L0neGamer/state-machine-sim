@@ -13,6 +13,7 @@ module Data.StateMachines.NFA
     RunNFA,
     RunNFAResult,
     runNFA,
+    expandEpsilon,
   )
 where
 

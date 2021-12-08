@@ -9,7 +9,7 @@
 module Data.StateMachines.StateMachine
   ( StateID,
     State (..),
-    stateName',
+    stateName,
     StateLike (..),
     Transition (..),
     StateMachine (..),
@@ -29,6 +29,9 @@ module Data.StateMachines.StateMachine
     tupleToSimpleTransition,
     addTransitions,
     addTransition,
+    getTransitions,
+    getState,
+    getState',
   )
 where
 
@@ -41,13 +44,10 @@ import Data.Map as M
     alter,
     empty,
     findWithDefault,
-    fromList,
-    insert,
-    lookup,
-    member,
-    toList,
     (!),
   )
+import qualified Data.Map as M
+import Data.Maybe (fromMaybe)
 import Data.Set as S
   ( Set,
     delete,
@@ -66,7 +66,8 @@ import Data.StateMachines.Internal
     lookupEither',
     updateVector,
   )
-import Data.Vector as V (Vector, replicate, (!?), (//))
+import Data.Tuple (swap)
+import Data.Vector as V (Vector, replicate, toList, (!?), (//))
 import Diagrams.Core.Names (IsName)
 
 -- TODO: the below
@@ -81,13 +82,13 @@ type StateID = Int
 -- | A data type that makes it easier to initially construct a state machine.
 data State
   = Dead
-  | State {stateName :: String}
+  | State String
   deriving (Show, Eq, Ord)
 
 -- | Utility function to get the name of the given state, whether it is `Dead` or not.
-stateName' :: State -> String
-stateName' Dead = "Dead"
-stateName' s = stateName s
+stateName :: State -> String
+stateName Dead = "Dead"
+stateName (State s) = s
 
 instance IsName State
 
@@ -196,7 +197,25 @@ data Transition a b = Transition
 -- | Takes a tuple that has two states and an @a@, and returns the equivalent
 -- `Transition`.
 tupleToSimpleTransition :: (State, State, a) -> Transition a ()
-tupleToSimpleTransition (s, s', a) = Transition s s' a ()
+tupleToSimpleTransition (s, s', a) = tupleToTransition (s, s', a, ())
+
+-- | Takes a tuple that can represent a transition and turns it into a transition.
+tupleToTransition :: (State, State, a, e) -> Transition a e
+tupleToTransition (s, s', a, e) = Transition s s' a e
+
+getTransitions :: (StateLike s, Semigroup e) => StateMachine l s e -> [Transition l e]
+getTransitions sm@StateMachine {..} = concatMap (uncurry simplifyMap) vlist
+  where
+    vlist = zip (map (getState sm) [0 ..]) (V.toList transitions)
+    simplifyMap start mp = concatMap (\(l, (ss, e)) -> fmap (\end -> Transition start (sm `getState` end) l e) (S.toList $ toSet ss)) $ M.assocs mp
+
+getState :: StateMachine l s e -> StateID -> State
+getState sm si = fromMaybe Dead (getState' sm si)
+
+getState' :: StateMachine l s e -> StateID -> Maybe State
+getState' StateMachine {..} si = M.lookup si numbersToNames
+  where
+    numbersToNames = M.fromList $ swap <$> M.assocs namesToNumbers
 
 -- | Returns a set of the states and a set of the language characters used by a list of
 -- transitions.
@@ -251,13 +270,15 @@ addTransitions' Transition {..} StateMachine {..} = do
 addTransitions :: (StateLike s, Ord l, Semigroup e) => [Transition l e] -> StateMachine l s e -> Error (StateMachine l s e)
 addTransitions ts sm@StateMachine {..} = do
   tups <- mapM (`addTransitions'` sm) ts
-  let v = transitions V.// M.toList (foldr hFunc M.empty tups)
+  let lst = M.toList (foldr hFunc M.empty tups)
+  let v = transitions V.// lst
   return $ updateTransitions v sm
   where
-    hFunc (sid, (l, (s, e))) m = M.insert sid (M.alter hFunc' l (findWithDefault M.empty sid m)) m
+    hFunc (sid, (l, (s, e))) m = M.insert sid altered m
       where
         hFunc' (Just (s', e')) = Just (combineStateLike s s', e <> e')
         hFunc' Nothing = Just (s, e)
+        altered = M.alter hFunc' l (findWithDefault M.empty sid m)
 
 -- | @constructStateMachine@ takes the following values and returns either an error from
 -- the construction of the machine or return the state machine itself.
@@ -270,8 +291,8 @@ addTransitions ts sm@StateMachine {..} = do
 -- - the accept states
 constructStateMachine :: (Ord l, StateLike s, Semigroup e) => String -> Set l -> Set State -> [Transition l e] -> State -> Set State -> StepFunction l s e -> Error (StateMachine l s e)
 constructStateMachine name' language' states' transitions' startState' acceptStates' step'' = do
-  acceptStatesList <- mapM (\s -> lookupEither' ("Could not find accept state " ++ show s) s namesToNumbers') (S.toList (S.delete Dead acceptStates'))
-  startStateID' <- lookupEither' ("Could not find start state " ++ show startState') startState' namesToNumbers'
+  acceptStatesList <- mapM (\s -> lookupEither' ("Could not find accept state (constructStateMachine) " ++ show s) s namesToNumbers') (S.toList (S.delete Dead acceptStates'))
+  startStateID' <- lookupEither' ("Could not find start state (constructStateMachine) " ++ show startState') startState' namesToNumbers'
   addTransitions transitions' $
     updateStartStateID startStateID' $
       updateAcceptStateIDs (S.fromList acceptStatesList) sm

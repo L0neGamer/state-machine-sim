@@ -6,26 +6,33 @@
 -- Stability   :  experimental
 --
 -- Functions for converting state machines.
-module Data.StateMachines.Convert (convertDFAToNFA, convertNFAToDFA) where
+module Data.StateMachines.Convert (convertDFAToNFA, convertNFAToDFA, reverseNFA) where
 
 import Data.Bifunctor (Bifunctor (first))
-import Data.Functor.Identity (Identity)
 import Data.List (intercalate)
 import qualified Data.Map as M
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.StateMachines.DFA (DFA)
 import Data.StateMachines.Internal (Error)
-import Data.StateMachines.NFA (NFA, NFAData (Epsilon, Val))
-import Data.StateMachines.StateMachine (ConsSM (inferSM, stepFunction), State (Dead, State), StateID, StateLike (toSet), StateMachine (..), Transition (Transition), stateName')
-import Data.Tuple (swap)
-import qualified Data.Vector as V
+import Data.StateMachines.NFA (NFA, NFAData (Epsilon, Val), expandEpsilon)
+import Data.StateMachines.StateMachine
+  ( ConsSM (inferSM, stepFunction),
+    State (Dead, State),
+    StateID,
+    StateLike (toSet),
+    StateMachine (..),
+    Transition (Transition),
+    getState,
+    getTransitions,
+    stateName,
+  )
 
 -- | Converts the given DFA into an NFA of the same type.
 convertDFAToNFA :: Ord a => DFA a -> NFA a
 convertDFAToNFA StateMachine {..} =
   StateMachine
-    ("NFA of `" ++ name ++ "`")
+    ("NFA of '" ++ name ++ "'")
     (S.map Val language)
     transitions'
     startStateID
@@ -35,31 +42,38 @@ convertDFAToNFA StateMachine {..} =
   where
     transitions' = fmap (M.map (Data.Bifunctor.first toSet) . M.mapKeys Val) transitions
 
-convertNFAToDFA :: (Ord a) => NFA a -> Error (DFA a)
+convertNFAToDFA :: (Ord a, Show a) => NFA a -> Error (DFA a)
 convertNFAToDFA nfa@StateMachine {..} = do
-  ds <- destinationStates
-  rs <- reachableStates ds
+  startStates <- expandEpsilon (S.singleton startStateID) nfa
+  rs <- reachableStates startStates
   ts <- foldr foldF (return []) rs
-  (inferSM :: Ord a => String -> [Transition a ()] -> State -> Set State -> Error (StateMachine a Identity ())) ("DFA of `" ++ name ++ "`") ts (State $ toNewName (S.singleton startStateID)) (S.map (State . toNewName) $ S.filter (not . S.disjoint acceptStateIDs) rs)
+  inferSM ("DFA of '" ++ name ++ "'") ts (toState startStates) (S.map toState $ S.filter (not . S.disjoint acceptStateIDs) rs)
   where
-    dead = namesToNumbers M.! Dead
-    numbersToNames = M.fromList $ swap <$> M.assocs namesToNumbers
-    language' = S.map (\(Val a) -> a) $ S.delete Epsilon language
-    destinationStates = S.delete S.empty <$> (S.fromList . fmap (S.delete dead . fst) <$> mapM (\l -> step (S.fromList [0 .. V.length transitions - 1]) (Val l) nfa) (S.toList language'))
-    getReachableStateFunction ss l = S.delete dead . fst <$> step ss (Val l) nfa
-    reachableStates ds = getReachableStates startStateID dead language' (S.insert (S.singleton startStateID) ds) getReachableStateFunction
-    toNewName s = intercalate ", " $ stateName' . (numbersToNames M.!) <$> S.toAscList s
+    language' = S.toAscList $ S.map (\(Val a) -> a) $ S.delete Epsilon language
+    getReachableStateFunction ss l = S.delete (namesToNumbers M.! Dead) . fst <$> step ss (Val l) nfa
+    adjustStates ss = S.delete S.empty . S.insert ss . S.fromList
+    reachableStates ss = getReachableStates (adjustStates ss) language' (S.singleton ss) getReachableStateFunction
+    toState s = State $ intercalate ", " $ stateName . getState nfa <$> S.toAscList s
     foldF startStates errTransitions = do
       transitions' <- errTransitions
-      resultant <- mapM (\l -> (l,) <$> getReachableStateFunction startStates l) (S.toAscList language')
-      return (fmap (\(l, d) -> Transition (State $ toNewName startStates) (State $ toNewName d) l ()) (filter (not . S.null . snd) resultant) ++ transitions')
+      resultant <- mapM (\l -> (l,) <$> getReachableStateFunction startStates l) language'
+      return (fmap (\(l, d) -> Transition (toState startStates) (toState d) l ()) (filter (not . S.null . snd) resultant) ++ transitions')
 
-getReachableStates :: StateID -> StateID -> Set l -> Set (Set StateID) -> (Set StateID -> l -> Error (Set StateID)) -> Error (S.Set (S.Set StateID))
-getReachableStates start dead lang curr stepF = do
-  next' <- next
-  let next'' = S.delete S.empty $ S.insert (S.singleton start) next'
+getReachableStates :: ([Set StateID] -> Set (Set StateID)) -> [l] -> Set (Set StateID) -> (Set StateID -> l -> Error (Set StateID)) -> Error (Set (Set StateID))
+getReachableStates adjustStates lang curr stepF = do
+  next' <- sequence ((stepF <$> S.toList curr) <*> lang)
+  let next'' = adjustStates next'
   if next'' == curr
     then return next''
-    else getReachableStates start dead lang next'' stepF
+    else getReachableStates adjustStates lang next'' stepF
+
+reverseNFA :: (Ord a, Show a) => NFA a -> Error (NFA a)
+reverseNFA nfa@StateMachine {..} = inferSM ("reverse of " ++ name) ts' newStartState (S.singleton (markOld $ getState nfa startStateID))
   where
-    next = S.fromList <$> sequence ((stepF <$> S.toList curr) <*> S.toList lang)
+    ts = getTransitions nfa
+    markOld Dead = Dead
+    markOld (State s) = State ("." ++ s)
+    newStartState = State "start"
+    revts = fmap (\(Transition s s' l e) -> Transition (markOld s') (markOld s) l e) ts
+    morets = fmap ((\as -> Transition newStartState (markOld as) Epsilon ()) . getState nfa) (S.toList acceptStateIDs)
+    ts' = morets ++ revts
